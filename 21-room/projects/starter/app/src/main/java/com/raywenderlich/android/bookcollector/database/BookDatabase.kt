@@ -35,5 +35,5 @@ import com.raywenderlich.android.bookcollector.Book
 
 @Database(entities = [Book::class], version = 1)
 abstract class BookDatabase : RoomDatabase() {
-  abstract fun bookDao(): BookDao
+    abstract fun bookDao(): BookDao
 }

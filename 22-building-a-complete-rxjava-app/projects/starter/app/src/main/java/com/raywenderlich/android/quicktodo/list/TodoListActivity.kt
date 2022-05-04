@@ -30,27 +30,53 @@
 package com.raywenderlich.android.quicktodo.list
 
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.jakewharton.rxbinding4.view.clicks
 import com.raywenderlich.android.quicktodo.R
 import com.raywenderlich.android.quicktodo.database.TaskRoomDatabase
-import com.raywenderlich.android.quicktodo.repository.TaskRepository
-import com.raywenderlich.android.quicktodo.utils.buildViewModel
-import io.reactivex.schedulers.Schedulers
+import com.raywenderlich.android.quicktodo.edit.EditTaskActivity
+import com.raywenderlich.android.quicktodo.repository.RoomTaskRepository
+import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_todo_list.*
 
 class TodoListActivity : AppCompatActivity() {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_todo_list)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_todo_list)
 
-    val adapter = TodoAdapter()
-    todo_list.layoutManager = LinearLayoutManager(this)
-    todo_list.adapter = adapter
+        val adapter = TodoAdapter()
+        todo_list.layoutManager = LinearLayoutManager(this)
+        todo_list.adapter = adapter
 
-    val viewModel = buildViewModel {
-      TodoListViewModel()
+        val swipeHelper = SwipeToRemoveHelper(adapter)
+        ItemTouchHelper(swipeHelper).attachToRecyclerView(todo_list)
+
+        val repository = RoomTaskRepository(TaskRoomDatabase.fetchDatabase(this))
+
+        val viewModel = TodoListViewModel(
+            repository,
+            Schedulers.io(),
+            Schedulers.computation(),
+            adapter.taskClickStream,
+            adapter.taskToggledStream,
+            add_button.clicks(),
+            swipeHelper.swipeStream
+        )
+
+        viewModel.listItemsLiveData.observe(this, Observer(adapter::submitList))
+
+        viewModel.showEditTaskLiveData.observe(this, Observer {
+            EditTaskActivity.launch(this, it)
+        })
+        viewModel.statisticsData.observe(this, Observer {
+            statistics.text = "${it.first} tasks, ${it.second} due"
+        })
+
+        statistics.visibility = View.VISIBLE
     }
-  }
 }

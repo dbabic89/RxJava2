@@ -35,6 +35,7 @@ fun exampleOf(description: String, action: () -> Unit) {
 
 fun safeSleep(timeInMillis: Long) {
     try {
+        println("Sleep $timeInMillis ms")
         Thread.sleep(timeInMillis)
     }
     catch (exception: InterruptedException) {

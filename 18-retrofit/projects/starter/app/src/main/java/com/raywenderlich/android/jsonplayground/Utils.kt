@@ -33,9 +33,13 @@
  */
 package com.raywenderlich.android.jsonplayground
 
-fun createNewJsonString(newKey: CharSequence, newValue: CharSequence, existingJson: CharSequence): String {
-  val strippedOldJson = existingJson.removePrefix("{").removeSuffix("}")
-  val newJsonPair = "\"$newKey\":\"$newValue\""
-  val separator = if (strippedOldJson.isNotEmpty()) "," else ""
-  return "{$strippedOldJson$separator\n$newJsonPair}"
+fun createNewJsonString(
+  newKey: CharSequence,
+  newValue: CharSequence,
+  existingJson: CharSequence
+): String {
+    val strippedOldJson = existingJson.removePrefix("{").removeSuffix("}")
+    val newJsonPair = "\"$newKey\":\"$newValue\""
+    val separator = if (strippedOldJson.isNotEmpty()) "," else ""
+    return "{$strippedOldJson$separator\n$newJsonPair}"
 }

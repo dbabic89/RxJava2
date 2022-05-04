@@ -40,7 +40,10 @@ import androidx.core.widget.ImageViewCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.preference.PreferenceManager
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.jakewharton.rxbinding4.view.clicks
 import com.jakewharton.rxbinding4.widget.afterTextChangeEvents
 import com.jakewharton.rxbinding4.widget.textChanges
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -48,57 +51,66 @@ import io.reactivex.rxjava3.kotlin.addTo
 import kotlinx.android.synthetic.main.dialog_color.*
 
 class ColorBottomSheet : BottomSheetDialogFragment() {
-  private val disposables = CompositeDisposable()
+    private val disposables = CompositeDisposable()
 
-  companion object {
-    fun newInstance(colorString: String): ColorBottomSheet {
-      val bundle = Bundle().apply {
-        putString("ColorString", colorString)
-      }
-      return ColorBottomSheet().apply {
-        arguments = bundle
-      }
+    companion object {
+        fun newInstance(colorString: String): ColorBottomSheet {
+            val bundle = Bundle().apply {
+                putString("ColorString", colorString)
+            }
+            return ColorBottomSheet().apply {
+                arguments = bundle
+            }
+        }
     }
-  }
 
-  override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-    return inflater.inflate(R.layout.dialog_color, container, true)
-  }
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.dialog_color, container, true)
+    }
 
-  @SuppressLint("CheckResult")
-  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    super.onViewCreated(view, savedInstanceState)
+    @SuppressLint("CheckResult")
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
-    val viewModel = ViewModelProvider(this, object : ViewModelProvider.NewInstanceFactory() {
-      override fun <T : ViewModel?> create(modelClass: Class<T>): T {
-        val colorString = arguments?.getString("ColorString") ?: ""
-        return ColorBottomSheetViewModel(colorString, ColorCoordinator()) as T
-      }
-    }).get(ColorBottomSheetViewModel::class.java)
+        val viewModel = ViewModelProvider(this, object : ViewModelProvider.NewInstanceFactory() {
+            override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+                val colorString = arguments?.getString("ColorString") ?: ""
+                return ColorBottomSheetViewModel(
+                    colorString,
+                    ColorCoordinator(),
+                    favorite.clicks(),
+                    RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences( requireContext()))
+                ) as T
+            }
+        }).get(ColorBottomSheetViewModel::class.java)
 
-    hex_input.textChanges()
-        .map { it.toString() }
-        .subscribe(viewModel::onTextChange)
-        .addTo(disposables)
+        hex_input.textChanges()
+            .map { it.toString() }
+            .subscribe(viewModel::onTextChange)
+            .addTo(disposables)
 
-    hex_input.afterTextChangeEvents().subscribe(viewModel::afterTextChange).addTo(disposables)
+        hex_input.afterTextChangeEvents().subscribe(viewModel::afterTextChange).addTo(disposables)
 
-    viewModel.showLoadingLiveData.observe(viewLifecycleOwner, Observer {
-      loading.visibility = if (it) View.VISIBLE else View.INVISIBLE
-    })
-    viewModel.closestColorLiveData.observe(viewLifecycleOwner, Observer {
-      closest_color_hex.text = it
-    })
-    viewModel.colorNameLiveData.observe(viewLifecycleOwner, Observer {
-      color_name.text = it
-    })
-    viewModel.colorLiveData.observe(viewLifecycleOwner, Observer {
-      ImageViewCompat.setImageTintList(favorite, ColorStateList.valueOf(it))
-    })
-  }
+        viewModel.showLoadingLiveData.observe(viewLifecycleOwner, Observer {
+            loading.visibility = if (it) View.VISIBLE else View.INVISIBLE
+        })
+        viewModel.closestColorLiveData.observe(viewLifecycleOwner, Observer {
+            closest_color_hex.text = it
+        })
+        viewModel.colorNameLiveData.observe(viewLifecycleOwner, Observer {
+            color_name.text = it
+        })
+        viewModel.colorLiveData.observe(viewLifecycleOwner, Observer {
+            ImageViewCompat.setImageTintList(favorite, ColorStateList.valueOf(it))
+        })
+    }
 
-  override fun onStop() {
-    super.onStop()
-    disposables.clear()
-  }
+    override fun onStop() {
+        super.onStop()
+        disposables.clear()
+    }
 }

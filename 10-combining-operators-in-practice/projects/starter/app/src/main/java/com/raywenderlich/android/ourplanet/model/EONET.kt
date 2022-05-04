@@ -31,21 +31,48 @@
 package com.raywenderlich.android.ourplanet.model
 
 import com.raywenderlich.android.ourplanet.EONETApi
+import io.reactivex.rxjava3.core.Observable
 import java.text.SimpleDateFormat
-import java.util.Locale
+import java.util.*
 
 object EONET {
 
-  const val API = "https://eonet.sci.gsfc.nasa.gov/api/v2.1/"
-  private const val DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-  private const val DISPLAY_DATE_FORMAT = "MM/dd/YY"
-  const val CATEGORIES_ENDPOINT = "categories"
-  const val EVENTS_ENDPOINT = "events"
+    const val API = "https://eonet.sci.gsfc.nasa.gov/api/v2.1/"
+    private const val DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+    private const val DISPLAY_DATE_FORMAT = "MM/dd/YY"
+    const val CATEGORIES_ENDPOINT = "categories"
+    const val EVENTS_ENDPOINT = "events"
 
-  val formatter = SimpleDateFormat(DATE_FORMAT, Locale.US)
-  val displayFormatter = SimpleDateFormat(DISPLAY_DATE_FORMAT, Locale.US)
+    val formatter = SimpleDateFormat(DATE_FORMAT, Locale.US)
+    val displayFormatter = SimpleDateFormat(DISPLAY_DATE_FORMAT, Locale.US)
 
-  private val eonet by lazy {
-    EONETApi.create()
-  }
+    fun fetchCategories() = eonet.fetchCategories()
+
+    fun fetchEvents(category: EOCategory, forLastDays: Int = 360): Observable<List<EOEvent>> {
+
+        val openEvents = events(category.endpoint, forLastDays, false)
+        val closeEvents = events(category.endpoint, forLastDays, true)
+
+        return Observable.merge(openEvents, closeEvents)
+    }
+
+    fun filterEventsForCategory(events: List<EOEvent>, category: EOCategory): List<EOEvent> {
+        return events.filter { event ->
+            event.categories.contains(category.id) && !category.events.map { it.id }.contains(event.id)
+        }.sortedWith(EOEvent.compareByDates)
+    }
+
+    private fun events(endpoint: String, forLastDays: Int, closed: Boolean): Observable<List<EOEvent>> {
+        val status = if (closed) "closed" else "open"
+
+        return eonet.fetchEvents(endpoint, forLastDays, status)
+                .map { response ->
+                    val events = response.events
+                    events.mapNotNull { EOEvent.fromJson(it) }
+                }
+    }
+
+    private val eonet by lazy {
+        EONETApi.create()
+    }
 }

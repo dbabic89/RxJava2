@@ -30,12 +30,18 @@
 
 package com.raywenderlich.android.combinestagram
 
-import androidx.lifecycle.ViewModel
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.util.Log
 import android.widget.ImageView
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import io.reactivex.Observable
+import io.reactivex.Single
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.rxkotlin.addTo
+import io.reactivex.subjects.BehaviorSubject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -44,26 +50,64 @@ import java.io.OutputStream
 
 class SharedViewModel : ViewModel() {
 
-  fun saveBitmapFromImageView(imageView: ImageView, context: Context) {
-    val tmpImg = "${System.currentTimeMillis()}.png"
+    private val subscriptions = CompositeDisposable()
 
-    val os: OutputStream?
+    private val imagesSubject = BehaviorSubject.createDefault<MutableList<Photo>>(mutableListOf())
 
-    val collagesDirectory = File(context.getExternalFilesDir(null), "collages")
-    if (!collagesDirectory.exists()) {
-      collagesDirectory.mkdirs()
+    private val selectedPhotos = MutableLiveData<List<Photo>>()
+
+    init {
+        imagesSubject.subscribe { photos ->
+            selectedPhotos.value = photos
+        }.addTo(subscriptions)
     }
 
-    val file = File(collagesDirectory, tmpImg)
+    fun getSelectedPhotos() = selectedPhotos
 
-    try {
-      os = FileOutputStream(file)
-      val bitmap = (imageView.drawable as BitmapDrawable).bitmap
-      bitmap.compress(Bitmap.CompressFormat.PNG, 100, os)
-      os.flush()
-      os.close()
-    } catch(e: IOException) {
-      Log.e("MainActivity", "Problem saving collage", e)
+    fun clearPhotos() {
+        imagesSubject.value?.clear()
+        imagesSubject.onNext(imagesSubject.value!!)
     }
-  }
+
+    fun subscribeSelectedPhotos(selectedPhotos: Observable<Photo>) {
+        selectedPhotos
+                .doOnComplete { Log.v("SharedViewModel", "Completed selecting photos") }
+                .subscribe { photo ->
+                    imagesSubject.value?.add(photo)
+                    imagesSubject.onNext(imagesSubject.value!!)
+                }
+                .addTo(subscriptions)
+    }
+
+    fun saveBitmapFromImageView(imageView: ImageView, context: Context): Single<String> {
+        return Single.create { emitter ->
+            val tmpImg = "${System.currentTimeMillis()}.png"
+
+            val os: OutputStream?
+
+            val collagesDirectory = File(context.getExternalFilesDir(null), "collages")
+            if (!collagesDirectory.exists()) {
+                collagesDirectory.mkdirs()
+            }
+
+            val file = File(collagesDirectory, tmpImg)
+
+            try {
+                os = FileOutputStream(file)
+                val bitmap = (imageView.drawable as BitmapDrawable).bitmap
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, os)
+                os.flush()
+                os.close()
+                emitter.onSuccess(tmpImg)
+            } catch (e: IOException) {
+                Log.e("MainActivity", "Problem saving collage", e)
+                emitter.onError(e)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        subscriptions.dispose()
+        super.onCleared()
+    }
 }

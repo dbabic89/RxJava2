@@ -36,7 +36,6 @@ import androidx.lifecycle.ViewModel
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -45,42 +44,80 @@ import java.util.concurrent.TimeUnit
 
 class WeatherViewModel(private val lastKnownLocation: Maybe<Location>) : ViewModel() {
 
-  private val disposables = CompositeDisposable()
-  private val locationClicks = PublishSubject.create<Unit>()
-  private val cityNameChanges = PublishSubject.create<CharSequence>()
-  val cityLiveData = MutableLiveData<String>()
-  val weatherLiveData = MutableLiveData<Weather>()
-  val errorLiveData = MutableLiveData<String>()
+    private val disposables = CompositeDisposable()
+    private val locationClicks = PublishSubject.create<Unit>()
+    private val cityNameChanges = PublishSubject.create<CharSequence>()
+    private val cache = mutableMapOf<String, Weather>()
+    private val maxAttempts = 4
 
-  init {
-    val locationObservable = locationClicks
-        .doOnNext { cityLiveData.postValue("Current Location") }
-        .flatMapMaybe { lastKnownLocation }
-        .flatMapSingle { cityName ->
-          WeatherApi.getWeather(cityName.toString())
-        }
-        .onErrorReturnItem(Weather.empty)
+    val cityLiveData = MutableLiveData<String>()
+    val weatherLiveData = MutableLiveData<Weather>()
+    val errorLiveData = MutableLiveData<String>()
 
-    val textObservable = cityNameChanges
-        .skip(1)
-        .debounce(1, TimeUnit.SECONDS)
-        .filter { it.toString() != "Current Location" }
-        .flatMapSingle { WeatherApi.getWeather(it.toString()) }
-        .onErrorReturnItem(Weather.empty)
+    init {
+        val locationObservable = locationClicks
+            .doOnNext { cityLiveData.postValue("Current Location") }
+            .flatMapMaybe { lastKnownLocation }
+            .flatMap { cityName ->
+                WeatherApi.getWeather(cityName)
+            }
+            .onErrorReturnItem(WeatherApi.NetworkResult.Success(Weather.empty))
 
-    Observable.merge(locationObservable, textObservable)
-        .subscribeOn(Schedulers.io())
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribe(weatherLiveData::postValue)
-        .addTo(disposables)
-  }
 
-  fun locationClicked() = locationClicks.onNext(Unit)
+        val textObservable = cityNameChanges
+            .skip(1)
+            .debounce(1, TimeUnit.SECONDS)
+            .filter { it.toString() != "Current Location" }
+            .flatMap { cityName ->
+                getWeatherForLocationName(cityName.toString())
+            }
 
-  fun cityNameChanged(name: CharSequence) = cityNameChanges.onNext(name)
+        Observable.merge(locationObservable, textObservable)
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(this::showNetworkResult)
+            .addTo(disposables)
+    }
+
+    fun locationClicked() = locationClicks.onNext(Unit)
+
+    fun cityNameChanged(name: CharSequence) = cityNameChanges.onNext(name)
 
     override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+        super.onCleared()
+        disposables.clear()
+    }
+
+    private fun getWeatherForLocationName(name: String): Observable<WeatherApi.NetworkResult> {
+        return WeatherApi.getWeather(name)
+            .retryWhen { errors ->
+                errors
+                    .scan(1) { count, _ ->
+                        if (count > maxAttempts) {
+                            throw RuntimeException("Error")
+                        }
+                        count + 1
+                    }
+                    .flatMap { Observable.timer(it.toLong(), TimeUnit.SECONDS) }
+            }
+            .onErrorReturn {
+                val cachedItem = cache[name] ?: Weather.empty
+                WeatherApi.NetworkResult.Success(cachedItem)
+            }
+    }
+
+    private fun showNetworkResult(networkResult: WeatherApi.NetworkResult) {
+        when (networkResult) {
+            is WeatherApi.NetworkResult.Success -> {
+                cache[networkResult.weather.cityName] = networkResult.weather
+                weatherLiveData.postValue(networkResult.weather)
+            }
+            is WeatherApi.NetworkResult.Failure -> {
+                when (networkResult.error) {
+                    WeatherApi.NetworkError.ServerFailure -> errorLiveData.postValue("Server Failure")
+                    WeatherApi.NetworkError.CityNotFound -> errorLiveData.postValue("City Not Found")
+                }
+            }
+        }
+    }
 }

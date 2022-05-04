@@ -45,31 +45,31 @@ import kotlinx.android.synthetic.main.activity_json.*
 
 class JsonActivity : AppCompatActivity() {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_json)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_json)
 
-    val viewModel = ViewModelProvider(this, object: ViewModelProvider.NewInstanceFactory() {
-      override fun <T : ViewModel?> create(modelClass: Class<T>): T = JsonViewModel() as T
-    }).get(JsonViewModel::class.java)
+        val viewModel = ViewModelProvider(this, object : ViewModelProvider.NewInstanceFactory() {
+          override fun <T : ViewModel?> create(modelClass: Class<T>): T = JsonViewModel() as T
+        }).get(JsonViewModel::class.java)
 
-    fab.setOnClickListener { viewModel.onClick() }
-    key.addTextChangedListener(object : TextWatcher {
-      override fun afterTextChanged(s: Editable) = viewModel.onKeyChange(s.toString())
-      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-    })
-    value.addTextChangedListener(object: TextWatcher {
-      override fun afterTextChanged(s: Editable) = viewModel.onValueChange(s.toString())
-      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-    })
+        fab.setOnClickListener { viewModel.onClick() }
+        key.addTextChangedListener(object : TextWatcher {
+          override fun afterTextChanged(s: Editable) = viewModel.onKeyChange(s.toString())
+          override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+          override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+        value.addTextChangedListener(object : TextWatcher {
+          override fun afterTextChanged(s: Editable) = viewModel.onValueChange(s.toString())
+          override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+          override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
 
-    viewModel.jsonTextLiveData.observe(this, Observer {
-      json.text = it
-    })
-    viewModel.errorLiveData.observe(this, Observer {
-      Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
-    })
-  }
+        viewModel.jsonTextLiveData.observe(this, Observer {
+          json.text = it
+        })
+        viewModel.errorLiveData.observe(this, Observer {
+          Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        })
+    }
 }

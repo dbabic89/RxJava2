@@ -30,7 +30,7 @@
 
 package com.raywenderlich.android.wundercast
 
-import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.core.Observable
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -41,34 +41,38 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface WeatherService {
-  companion object {
-    fun create(): WeatherService {
-      val logging = HttpLoggingInterceptor()
-      logging.level = HttpLoggingInterceptor.Level.BODY
+    companion object {
+        fun create(): WeatherService {
+            val logging = HttpLoggingInterceptor()
+            logging.level = HttpLoggingInterceptor.Level.BODY
 
-      val client = OkHttpClient.Builder()
-          .addInterceptor(logging)
-          .build()
+            val client = OkHttpClient.Builder()
+                .addInterceptor(logging)
+                .build()
 
-      val retrofit = Retrofit.Builder()
-          .baseUrl(WeatherApi.API)
-          .client(client)
-          .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
-          .addConverterFactory(GsonConverterFactory.create())
-          .build()
+            val retrofit = Retrofit.Builder()
+                .baseUrl(WeatherApi.API)
+                .client(client)
+                .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
 
-      return retrofit.create(WeatherService::class.java)
+            return retrofit.create(WeatherService::class.java)
+        }
     }
-  }
 
-  @GET("weather")
-  fun getWeather(@Query("q") location: String,
-                 @Query("appid") key: String,
-                 @Query("units") units: String = "metric"): Single<Response<WeatherNetworkModel>>
+    @GET("weather")
+    fun getWeather(
+        @Query("q") location: String,
+        @Query("appid") key: String,
+        @Query("units") units: String = "metric"
+    ): Observable<Response<WeatherNetworkModel>>
 
-  @GET("weather")
-  fun getWeather(@Query("lat") lat: Double,
-                 @Query("lon") lon: Double,
-                 @Query("appid") key: String,
-                 @Query("units") units: String = "metric"): Single<Response<WeatherNetworkModel>>
+    @GET("weather")
+    fun getWeather(
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double,
+        @Query("appid") key: String,
+        @Query("units") units: String = "metric"
+    ): Observable<Response<WeatherNetworkModel>>
 }

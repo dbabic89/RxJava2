@@ -32,81 +32,91 @@ package com.raywenderlich.android.hexcolor
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.jakewharton.rxbinding4.widget.TextViewAfterTextChangeEvent
 import com.raywenderlich.android.hexcolor.networking.ColorApi
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 
 class ColorBottomSheetViewModel(
-  startingColor: String,
-  colorCoordinator: ColorCoordinator
+    startingColor: String,
+    colorCoordinator: ColorCoordinator,
+    favoriteClicks: Observable<Unit>,
+    sharedPreferences: RxSharedPreferences
 ) : ViewModel() {
-  private val searchObservable = BehaviorSubject.create<String>()
-  private val textChangeEventsObservable = BehaviorSubject.create<TextViewAfterTextChangeEvent>()
+    private val searchObservable = BehaviorSubject.create<String>()
+    private val textChangeEventsObservable = BehaviorSubject.create<TextViewAfterTextChangeEvent>()
 
-  val showLoadingLiveData = MutableLiveData<Boolean>()
-  val colorNameLiveData = MutableLiveData<String>()
-  val closestColorLiveData = MutableLiveData<String>()
-  val colorLiveData = MutableLiveData<Int>()
+    val showLoadingLiveData = MutableLiveData<Boolean>()
+    val colorNameLiveData = MutableLiveData<String>()
+    val closestColorLiveData = MutableLiveData<String>()
+    val colorLiveData = MutableLiveData<Int>()
 
-  private val disposables = CompositeDisposable()
+    private val disposables = CompositeDisposable()
 
-  init {
-    textChangeEventsObservable
-      .doOnNext { event ->
-        event.editable?.let { editable ->
-          if (editable.firstOrNull() != '#') {
-            editable.insert(0, "#")
-          }
-          if (editable.length > 7) {
-            editable.delete(7, editable.length)
-          }
-          editable.lastOrNull()?.let {
-            if (it !in '0'..'9' && it !in 'A'..'F' && it != '#') {
-              editable.delete(editable.length - 1, editable.length)
+    init {
+        textChangeEventsObservable
+            .doOnNext { event ->
+                event.editable?.let { editable ->
+                    if (editable.firstOrNull() != '#') {
+                        editable.insert(0, "#")
+                    }
+                    if (editable.length > 7) {
+                        editable.delete(7, editable.length)
+                    }
+                    editable.lastOrNull()?.let {
+                        if (it !in '0'..'9' && it !in 'A'..'F' && it != '#') {
+                            editable.delete(editable.length - 1, editable.length)
+                        }
+                    }
+                }
             }
-          }
-        }
-      }
-      .subscribe()
-      .addTo(disposables)
+            .subscribe()
+            .addTo(disposables)
 
-    val colorObservable = searchObservable
-      .startWithItem(startingColor)
-      .filter { it.length == 7 }
-      .flatMapSingle {
-        ColorApi.getClosestColor(it)
-          .subscribeOn(Schedulers.io())
-          .doOnSubscribe { showLoadingLiveData.postValue(true) }
-          .doAfterSuccess { showLoadingLiveData.postValue(false) }
-      }
-      .map { it.name }
-      .share()
+        val colorObservable = searchObservable
+            .startWithItem(startingColor)
+            .filter { it.length == 7 }
+            .flatMapSingle {
+                ColorApi.getClosestColor(it)
+                    .subscribeOn(Schedulers.io())
+                    .doOnSubscribe { showLoadingLiveData.postValue(true) }
+                    .doAfterSuccess { showLoadingLiveData.postValue(false) }
+            }
+            .map { it.name }
+            .share()
 
-    colorObservable
-      .subscribe { colorNameLiveData.postValue(it.value) }
-      .addTo(disposables)
+        colorObservable
+            .subscribe { colorNameLiveData.postValue(it.value) }
+            .addTo(disposables)
 
-    colorObservable
-      .subscribe { closestColorLiveData.postValue(it.closest_named_hex) }
-      .addTo(disposables)
+        colorObservable
+            .subscribe { closestColorLiveData.postValue(it.closest_named_hex) }
+            .addTo(disposables)
 
-    colorObservable
-      .map { it.closest_named_hex }
-      .map { colorCoordinator.parseColor(it) }
-      .subscribe { colorLiveData.postValue(it) }
-      .addTo(disposables)
-  }
+        colorObservable
+            .map { it.closest_named_hex }
+            .map { colorCoordinator.parseColor(it) }
+            .subscribe { colorLiveData.postValue(it) }
+            .addTo(disposables)
 
-  fun onTextChange(text: String) = searchObservable.onNext(text)
+        val preference = sharedPreferences.getString("favoriteColor")
+        favoriteClicks
+            .map { closestColorLiveData.value!! }
+            .subscribe(preference::set)
+            .addTo(disposables)
+    }
 
-  fun afterTextChange(effect: TextViewAfterTextChangeEvent) =
-      textChangeEventsObservable.onNext(effect)
+    fun onTextChange(text: String) = searchObservable.onNext(text)
 
-  override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+    fun afterTextChange(effect: TextViewAfterTextChangeEvent) =
+        textChangeEventsObservable.onNext(effect)
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
+    }
 }

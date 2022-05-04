@@ -29,10 +29,28 @@
  */
 package com.raywenderlich.android.quicktodo.database
 
-import androidx.room.Dao
+import androidx.room.*
+import com.raywenderlich.android.quicktodo.model.TaskItem
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 
 @Dao
 interface TaskDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertTask(taskItem: TaskItem): Single<Long>
 
+    @Insert
+    fun insertTasks(tasks: List<TaskItem>): Completable
+
+    @Query("SELECT * FROM TaskItem WHERE id = :id")
+    fun fetchTask(id: Int): Maybe<TaskItem>
+
+    @Query("SELECT * FROM TaskItem ORDER BY addedDate")
+    fun taskStream(): Observable<List<TaskItem>>
+
+    @Delete
+    fun deleteTask(taskItem: TaskItem): Completable
 }
 

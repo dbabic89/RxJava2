@@ -31,13 +31,13 @@
 
 package com.raywenderlich.android.hexcolor.networking
 
-import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.core.Observable
 
 object ColorApi {
-  const val API = "https://www.thecolorapi.com/"
-  private val colorService = ColorService.create()
+    const val API = "https://www.thecolorapi.com/"
+    private val colorService = ColorService.create()
 
-  fun getClosestColor(hexString: String): Single<ColorResponse> {
-    return Single.error(RuntimeException("Coming soon!"))
-  }
+    fun getClosestColor(hexString: String): Observable<ColorResponse> {
+        return colorService.getColor(hexString)
+    }
 }

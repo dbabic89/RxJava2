@@ -33,30 +33,49 @@
  */
 package com.raywenderlich.android.jsonplayground
 
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Response
 import retrofit2.Retrofit
+import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
+import retrofit2.http.*
 
 interface JsonBinService {
-  companion object {
-    fun create(): JsonBinService {
-      val logging = HttpLoggingInterceptor()
-      logging.level = HttpLoggingInterceptor.Level.BODY
 
-      val client = OkHttpClient.Builder()
-        .addInterceptor(logging)
-        .build()
+    @POST("/bins")
+    @Headers("Content-Type:application/json")
+    fun createJson(@Body json: String): Observable<JsonCreationResponse>
 
-      val retrofit = Retrofit.Builder()
-        .baseUrl(JsonBinApi.API)
-        .client(client)
-        .addConverterFactory(ScalarsConverterFactory.create())
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
+    @PUT("/bins/{id}")
+    @Headers("Content-Type:application/json")
+    fun updateJson(@Path("id") binId: String, @Body json: String): Completable
 
-      return retrofit.create(JsonBinService::class.java)
+    @GET("/bins/{id}?pretty=1") @Headers("Content-Type:application/json")
+    fun getJson(@Path("id") binId: String): Single<Response<String>>
+
+    companion object {
+        fun create(): JsonBinService {
+            val logging = HttpLoggingInterceptor()
+            logging.level = HttpLoggingInterceptor.Level.BODY
+
+            val client = OkHttpClient.Builder()
+                    .addInterceptor(logging)
+                    .build()
+
+            val retrofit = Retrofit.Builder()
+                    .baseUrl(JsonBinApi.API)
+                    .client(client)
+                    .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
+                    .addConverterFactory(ScalarsConverterFactory.create())
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+
+            return retrofit.create(JsonBinService::class.java)
+        }
     }
-  }
 }

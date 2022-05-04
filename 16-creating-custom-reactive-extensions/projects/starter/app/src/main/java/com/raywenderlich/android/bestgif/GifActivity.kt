@@ -34,26 +34,87 @@
 
 package com.raywenderlich.android.bestgif
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.raywenderlich.android.bestgif.networking.GiphyApi
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import kotlinx.android.synthetic.main.activity_gif.*
+import java.util.concurrent.TimeUnit
 
 class GifActivity : AppCompatActivity() {
-  private val adapter = GiphyAdapter()
-  private val disposables = CompositeDisposable()
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_gif)
+    private val adapter = GiphyAdapter()
+    private val disposables = CompositeDisposable()
+    private val locationRequestCode = 500
+    private val permissionsSubject = BehaviorSubject.create<Boolean>()
 
-    list.layoutManager = LinearLayoutManager(this)
-    list.adapter = adapter
-  }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_gif)
 
-  override fun onDestroy() {
-    super.onDestroy()
-    disposables.dispose()
-  }
+        list.layoutManager = LinearLayoutManager(this)
+        list.adapter = adapter
+
+        text_input
+            .textChanges()
+            .debounce(500, TimeUnit.MILLISECONDS)
+            .flatMap { getGifs(it) }
+            .onErrorReturnItem(listOf(GiphyGif("https://media.giphy.com/media/SQ24FpNRW9yRG/giphy.gif")))
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { adapter.items = it }
+            .addTo(disposables)
+
+        permissionsSubject.doOnSubscribe {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                    locationRequestCode
+                )
+            } else {
+                permissionsSubject.onNext(true)
+            }
+        }
+            .filter { it }
+            .flatMap { locationUpdates(this) }
+            .take(1)
+            .map { cityFromLocation(this, it) }
+            .doOnNext { text_input.hint = it }
+            .flatMap { GiphyApi.searchForGifs(it).subscribeOn(Schedulers.io()) }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { adapter.items = it }
+            .addTo(disposables)
+    }
+
+    private fun getGifs(it: String) =
+        GiphyApi
+            .searchForGifs(it)
+            .subscribeOn(Schedulers.io())
+
+    override fun onDestroy() {
+        super.onDestroy()
+        disposables.dispose()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions:
+        Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == locationRequestCode) {
+            val locationIndex = permissions.indexOf(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (locationIndex != -1) {
+                val granted = grantResults[locationIndex] == PackageManager.PERMISSION_GRANTED
+                permissionsSubject.onNext(granted)
+            }
+        }
+    }
 }

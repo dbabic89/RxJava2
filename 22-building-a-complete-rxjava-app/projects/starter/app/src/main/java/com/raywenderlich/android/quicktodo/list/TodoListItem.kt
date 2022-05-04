@@ -29,4 +29,10 @@
  */
 package com.raywenderlich.android.quicktodo.list
 
-class TodoListItem
+import com.raywenderlich.android.quicktodo.model.TaskItem
+
+sealed class TodoListItem(val viewType: Int) {
+    object DueTasks : TodoListItem(0)
+    object DoneTasks : TodoListItem(1)
+    data class TaskListItem(val task: TaskItem) : TodoListItem(2)
+}

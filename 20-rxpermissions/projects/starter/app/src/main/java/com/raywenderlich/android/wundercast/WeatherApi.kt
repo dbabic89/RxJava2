@@ -36,64 +36,67 @@ import io.reactivex.rxjava3.subjects.BehaviorSubject
 import retrofit2.Response
 
 object WeatherApi {
-  const val API = "https://api.openweathermap.org/data/2.5/"
-  val apiKey: BehaviorSubject<String> = BehaviorSubject.createDefault("INSERT_YOUR_API_KEY_HERE")
+    const val API = "https://api.openweathermap.org/data/2.5/"
+    val apiKey: BehaviorSubject<String> =
+        BehaviorSubject.createDefault("2f7aa22c13b790c404d8c28ba9e217f2")
 
-  private val weather by lazy {
-    WeatherService.create()
-  }
+    private val weather by lazy {
+        WeatherService.create()
+    }
 
-  fun getWeather(city: String): Single<NetworkResult> {
-    return weather.getWeather(city, apiKey.value)
-      .map(this::mapWeatherResponse)
-  }
+    fun getWeather(city: String): Single<NetworkResult> {
+        return weather.getWeather(city, apiKey.value)
+            .map(this::mapWeatherResponse)
+    }
 
-  fun getWeather(location: Location): Single<NetworkResult> {
-    return weather.getWeather(location.latitude, location.longitude, apiKey.value)
-      .map(this::mapWeatherResponse)
-  }
+    fun getWeather(location: Location): Single<NetworkResult> {
+        return weather.getWeather(location.latitude, location.longitude, apiKey.value)
+            .map(this::mapWeatherResponse)
+    }
 
-  private fun mapWeatherResponse(response: Response<WeatherNetworkModel>): NetworkResult {
-    return when (response.code()) {
-      in 200..300 -> {
-        val body = response.body()
-        if (body != null) {
-          NetworkResult.Success(body.toWeather().copy(icon = iconNameToChar(body.weather.first().icon)))
-        } else {
-          NetworkResult.Failure(NetworkError.ServerFailure)
+    private fun mapWeatherResponse(response: Response<WeatherNetworkModel>): NetworkResult {
+        return when (response.code()) {
+            in 200..300 -> {
+                val body = response.body()
+                if (body != null) {
+                    NetworkResult.Success(
+                        body.toWeather().copy(icon = iconNameToChar(body.weather.first().icon))
+                    )
+                } else {
+                    NetworkResult.Failure(NetworkError.ServerFailure)
+                }
+            }
+            401 -> NetworkResult.Failure(NetworkError.InvalidKey)
+            in 400..500 -> NetworkResult.Failure(NetworkError.CityNotFound)
+            else -> NetworkResult.Failure(NetworkError.ServerFailure)
         }
-      }
-      401 -> NetworkResult.Failure(NetworkError.InvalidKey)
-      in 400..500 -> NetworkResult.Failure(NetworkError.CityNotFound)
-      else -> NetworkResult.Failure(NetworkError.ServerFailure)
     }
-  }
 
-  private fun iconNameToChar(icon: String): String {
-    return when (icon) {
-      "01d" -> "\uf11b"
-      "01n" -> "\uf110"
-      "02d" -> "\uf112"
-      "02n" -> "\uf104"
-      "03d", "03n" -> "\uf111"
-      "04d", "04n" -> "\uf111"
-      "09d", "09n" -> "\uf116"
-      "10d", "10n" -> "\uf113"
-      "11d", "11n" -> "\uf10d"
-      "13d", "13n" -> "\uf119"
-      "50d", "50n" -> "\uf10e"
-      else -> "E"
+    private fun iconNameToChar(icon: String): String {
+        return when (icon) {
+            "01d" -> "\uf11b"
+            "01n" -> "\uf110"
+            "02d" -> "\uf112"
+            "02n" -> "\uf104"
+            "03d", "03n" -> "\uf111"
+            "04d", "04n" -> "\uf111"
+            "09d", "09n" -> "\uf116"
+            "10d", "10n" -> "\uf113"
+            "11d", "11n" -> "\uf10d"
+            "13d", "13n" -> "\uf119"
+            "50d", "50n" -> "\uf10e"
+            else -> "E"
+        }
     }
-  }
 
-  sealed class NetworkResult {
-    class Success(val weather: Weather) : NetworkResult()
-    class Failure(val error: NetworkError) : NetworkResult()
-  }
+    sealed class NetworkResult {
+        class Success(val weather: Weather) : NetworkResult()
+        class Failure(val error: NetworkError) : NetworkResult()
+    }
 
-  sealed class NetworkError {
-    object InvalidKey : NetworkError()
-    object ServerFailure : NetworkError()
-    object CityNotFound : NetworkError()
-  }
+    sealed class NetworkError {
+        object InvalidKey : NetworkError()
+        object ServerFailure : NetworkError()
+        object CityNotFound : NetworkError()
+    }
 }

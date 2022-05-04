@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2020 Razeware LLC
  *
@@ -39,42 +38,49 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.jakewharton.rxbinding4.widget.textChanges
 import kotlinx.android.synthetic.main.dialog_color.*
 
 class ColorBottomSheet : BottomSheetDialogFragment() {
-  companion object {
-    fun newInstance(colorString: String): ColorBottomSheet {
-      val bundle = Bundle().apply {
-        putString("ColorString", colorString)
-      }
-      return ColorBottomSheet().apply {
-        arguments = bundle
-      }
+    companion object {
+        fun newInstance(colorString: String): ColorBottomSheet {
+            val bundle = Bundle().apply {
+                putString("ColorString", colorString)
+            }
+            return ColorBottomSheet().apply {
+                arguments = bundle
+            }
+        }
     }
-  }
 
-  override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-    return inflater.inflate(R.layout.dialog_color, container, true)
-  }
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.dialog_color, container, true)
+    }
 
-  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    super.onViewCreated(view, savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
-    val viewModel = ViewModelProvider(this, object : ViewModelProvider.NewInstanceFactory() {
-      override fun <T : ViewModel?> create(modelClass: Class<T>): T {
-        val colorString = arguments?.getString("ColorString") ?: ""
-        return ColorBottomSheetViewModel(colorString) as T
-      }
-    }).get(ColorBottomSheetViewModel::class.java)
+        val textChanges = hex_input.textChanges().map { it.toString() }
 
-    viewModel.showLoadingLiveData.observe(viewLifecycleOwner, Observer {
-      loading.visibility = if (it) View.VISIBLE else View.GONE
-    })
-    viewModel.closestColorLiveData.observe(viewLifecycleOwner, Observer {
-      closest_color_hex.text = it
-    })
-    viewModel.colorNameLiveData.observe(viewLifecycleOwner, Observer {
-      color_name.text = it
-    })
-  }
+        val viewModel = ViewModelProvider(this, object : ViewModelProvider.NewInstanceFactory() {
+            override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+                val colorString = arguments?.getString("ColorString") ?: ""
+                return ColorBottomSheetViewModel(colorString, textChanges) as T
+            }
+        }).get(ColorBottomSheetViewModel::class.java)
+
+        viewModel.showLoadingLiveData.observe(viewLifecycleOwner, Observer {
+            loading.visibility = if (it) View.VISIBLE else View.GONE
+        })
+        viewModel.closestColorLiveData.observe(viewLifecycleOwner, Observer {
+            closest_color_hex.text = it
+        })
+        viewModel.colorNameLiveData.observe(viewLifecycleOwner, Observer {
+            color_name.text = it
+        })
+    }
 }

@@ -32,18 +32,41 @@ package com.raywenderlich.android.timeoperators
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.raywenderlich.android.timeoperators.utils.dispatchAfter
+import com.raywenderlich.android.timeoperators.utils.timer
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import kotlinx.android.synthetic.main.activity_replay.*
+import java.util.concurrent.TimeUnit
 
 class ReplayActivity : AppCompatActivity() {
-  private var disposables = CompositeDisposable()
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_replay)
-  }
+    private var disposables = CompositeDisposable()
+    val elementsPerSecond = 1L
+    val replayedElements = 2
+    val replayDelayInMs = 3500L
+    val maxElements = 5
 
-  override fun onDestroy() {
-    super.onDestroy()
-    disposables.dispose()
-  }
+    val sourceObservable = Observable
+        .interval(1 / elementsPerSecond, TimeUnit.SECONDS, AndroidSchedulers.mainThread())
+        .replay()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_replay)
+
+        sourceObservable.subscribe(replay_1)
+
+        dispatchAfter(replayDelayInMs) {
+            sourceObservable.subscribe(replay_2)
+        }
+
+        sourceObservable.connect()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        disposables.dispose()
+    }
 }

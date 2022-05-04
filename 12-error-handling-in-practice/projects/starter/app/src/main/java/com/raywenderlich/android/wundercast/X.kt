@@ -47,93 +47,101 @@ import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
 
 fun lastKnownLocation(context: Context): Maybe<Location> {
-  if (ContextCompat.checkSelfPermission(context,
-      Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-    return Maybe.create { emitter ->
-      val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-      fusedLocationClient.requestLocationUpdates(LocationRequest(), object: LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult?) {
-          if (locationResult != null && locationResult.lastLocation != null) {
-            emitter.onSuccess(locationResult.lastLocation)
-            fusedLocationClient.removeLocationUpdates(this)
-          }
+    if (ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_FINE_LOCATION
+      ) == PackageManager.PERMISSION_GRANTED
+    ) {
+        return Maybe.create { emitter ->
+            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+            fusedLocationClient.requestLocationUpdates(
+              LocationRequest(),
+              object : LocationCallback() {
+                override fun onLocationResult(locationResult: LocationResult?) {
+                  if (locationResult != null && locationResult.lastLocation != null) {
+                    emitter.onSuccess(locationResult.lastLocation)
+                    fusedLocationClient.removeLocationUpdates(this)
+                  }
+                }
+              },
+              null
+            )
         }
-      }, null)
+    } else {
+        return Maybe.empty()
     }
-  } else {
-    return Maybe.empty()
-  }
 }
 
 fun connectivityStream(context: Context): Observable<NetworkState> {
-  return Observable.create { emitter ->
-    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    if (getIsConnected(context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)) {
-      emitter.onNext(NetworkState.CONNECTED)
-    } else {
-      emitter.onNext(NetworkState.DISCONNECTED)
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      cm.registerNetworkCallback(
-        NetworkRequest.Builder()
-          .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-          .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
-          .build(),
-        object : ConnectivityManager.NetworkCallback() {
-          override fun onAvailable(network: Network) {
+    return Observable.create { emitter ->
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (getIsConnected(context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)) {
             emitter.onNext(NetworkState.CONNECTED)
-          }
-        })
-    } else {
-      @Suppress("DEPRECATION")
-      context.registerReceiver(object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-          val networkInfo = intent.getParcelableExtra<NetworkInfo>(ConnectivityManager.EXTRA_NETWORK_INFO)
-          val newlyConnected = networkInfo.isConnectedOrConnecting
-          if (newlyConnected) {
-            emitter.onNext(NetworkState.CONNECTED)
-          } else {
+        } else {
             emitter.onNext(NetworkState.DISCONNECTED)
-          }
         }
-      }, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            cm.registerNetworkCallback(
+              NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
+                .build(),
+              object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                  emitter.onNext(NetworkState.CONNECTED)
+                }
+              })
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(object : BroadcastReceiver() {
+              override fun onReceive(context: Context, intent: Intent) {
+                val networkInfo =
+                  intent.getParcelableExtra<NetworkInfo>(ConnectivityManager.EXTRA_NETWORK_INFO)
+                val newlyConnected = networkInfo.isConnectedOrConnecting
+                if (newlyConnected) {
+                  emitter.onNext(NetworkState.CONNECTED)
+                } else {
+                  emitter.onNext(NetworkState.DISCONNECTED)
+                }
+              }
+            }, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+        }
     }
-  }
 }
 
 @Suppress("DEPRECATION")
 private fun getIsConnected(connectivityManager: ConnectivityManager): Boolean {
-  var isConnected = false
-  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-    val networkCapabilities = connectivityManager.activeNetwork ?: null
-    val actNw =
-      connectivityManager.getNetworkCapabilities(networkCapabilities)
-        ?: null
-    isConnected = if (actNw != null) {
-      when {
-        actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-        actNw.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-        actNw.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-        else -> false
-      }
-    } else false
-  } else {
-    connectivityManager.run {
-      connectivityManager.activeNetworkInfo?.run {
-        isConnected = when (type) {
-          ConnectivityManager.TYPE_WIFI -> true
-          ConnectivityManager.TYPE_MOBILE -> true
-          ConnectivityManager.TYPE_ETHERNET -> true
-          else -> false
-        }
+    var isConnected = false
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val networkCapabilities = connectivityManager.activeNetwork ?: null
+        val actNw =
+            connectivityManager.getNetworkCapabilities(networkCapabilities)
+                ?: null
+        isConnected = if (actNw != null) {
+            when {
+                actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                actNw.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+                actNw.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+                else -> false
+            }
+        } else false
+    } else {
+        connectivityManager.run {
+            connectivityManager.activeNetworkInfo?.run {
+                isConnected = when (type) {
+                  ConnectivityManager.TYPE_WIFI -> true
+                  ConnectivityManager.TYPE_MOBILE -> true
+                  ConnectivityManager.TYPE_ETHERNET -> true
+                    else -> false
+                }
 
-      }
+            }
+        }
     }
-  }
-  return isConnected
+    return isConnected
 }
 
 enum class NetworkState {
-  CONNECTED,
-  DISCONNECTED
+    CONNECTED,
+    DISCONNECTED
 }

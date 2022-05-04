@@ -30,6 +30,27 @@
 package com.raywenderlich.android.quicktodo.repository
 
 import com.raywenderlich.android.quicktodo.database.TaskDatabase
+import com.raywenderlich.android.quicktodo.model.TaskItem
+import io.reactivex.rxjava3.core.Single
 
-class RoomTaskRepository(private val database: TaskDatabase): TaskRepository {
+class RoomTaskRepository(private val database: TaskDatabase) : TaskRepository {
+
+    companion object {
+        const val INVALID_ID = -1
+    }
+
+    override fun insertTask(taskItem: TaskItem): Single<Long> {
+        val validIdTask = if (taskItem.id == INVALID_ID) {
+            taskItem.copy(id = null)
+        } else {
+            taskItem
+        }
+        return database.taskDao().insertTask(validIdTask)
+    }
+
+    override fun getTask(id: Int) = database.taskDao().fetchTask(id)
+
+    override fun taskStream() = database.taskDao().taskStream()
+
+    override fun deleteTask(taskItem: TaskItem) = database.taskDao().deleteTask(taskItem)
 }

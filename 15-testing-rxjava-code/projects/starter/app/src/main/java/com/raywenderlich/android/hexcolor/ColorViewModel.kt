@@ -42,92 +42,92 @@ class ColorViewModel(backgroundScheduler: Scheduler,
                      mainScheduler: Scheduler,
                      colorCoordinator: ColorCoordinator) : ViewModel() {
 
-  val hexStringSubject = BehaviorSubject.createDefault("#")
-  val hexStringLiveData = MutableLiveData<String>()
-  val backgroundColorLiveData = MutableLiveData<Int>()
-  val rgbStringLiveData = MutableLiveData<String>()
-  val colorNameLiveData = MutableLiveData<String>()
+    val hexStringSubject = BehaviorSubject.createDefault("#")
+    val hexStringLiveData = MutableLiveData<String>()
+    val backgroundColorLiveData = MutableLiveData<Int>()
+    val rgbStringLiveData = MutableLiveData<String>()
+    val colorNameLiveData = MutableLiveData<String>()
 
-  private val disposables = CompositeDisposable()
+    private val disposables = CompositeDisposable()
 
-  init {
-    // Send the hex string to the activity
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .subscribe(hexStringLiveData::postValue)
-        .addTo(disposables)
+    init {
+        // Send the hex string to the activity
+        hexStringSubject
+                .subscribeOn(backgroundScheduler)
+                .observeOn(mainScheduler)
+                .subscribe(hexStringLiveData::postValue)
+                .addTo(disposables)
 
-    // Send the actual color object to the activity
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .map { if (it.length < 7) "#FFFFFF" else it }
-        .map { colorCoordinator.parseColor(it) }
-        .subscribe(backgroundColorLiveData::postValue)
-        .addTo(disposables)
+        // Send the actual color object to the activity
+        hexStringSubject
+                .subscribeOn(backgroundScheduler)
+                .observeOn(mainScheduler)
+                .map { if (it.length < 7) "#FFFFFF" else it }
+                .map { colorCoordinator.parseColor(it) }
+                .subscribe(backgroundColorLiveData::postValue)
+                .addTo(disposables)
 
-    // Send over the color name "--" if the hex string is less than seven chars
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .filter { it.length < 7 }
-        .map { "--" }
-        .subscribe(colorNameLiveData::postValue)
-        .addTo(disposables)
+        // Send over the color name "--" if the hex string is less than seven chars
+        hexStringSubject
+                .subscribeOn(backgroundScheduler)
+                .observeOn(mainScheduler)
+                .filter { it.length < 7 }
+                .map { "--" }
+                .subscribe(colorNameLiveData::postValue)
+                .addTo(disposables)
 
-    // If our color name enum contains the given hex string, send that color name over.
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .filter { hexString ->
-          ColorName.values().map { it.hex }.contains(hexString)
-        }
-        .map { hexString ->
-          ColorName.values().first { it.hex == hexString }
-        }
-        .map { it.toString() }
-        .subscribe(colorNameLiveData::postValue)
-        .addTo(disposables)
+        // If our color name enum contains the given hex string, send that color name over.
+        hexStringSubject
+                .subscribeOn(backgroundScheduler)
+                .observeOn(mainScheduler)
+                .filter { hexString ->
+                    ColorName.values().map { it.hex }.contains(hexString)
+                }
+                .map { hexString ->
+                    ColorName.values().first { it.hex == hexString }
+                }
+                .map { it.toString() }
+                .subscribe(colorNameLiveData::postValue)
+                .addTo(disposables)
 
-    // Send the RGB values of the color to the activity.
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .map {
-          if (it.length == 7) {
-            colorCoordinator.parseRgbColor(it)
-          } else {
-            RGBColor(255, 255, 255)
-          }
-        }
-        .map { "${it.red},${it.green},${it.blue}" }
-        .subscribe(rgbStringLiveData::postValue)
-        .addTo(disposables)
-  }
-
-  private fun currentHexValue(): String {
-    return hexStringSubject.value ?: ""
-  }
-
-  fun backClicked() {
-    if (currentHexValue().length >= 2) {
-      hexStringSubject.onNext(currentHexValue().substring(0, currentHexValue().lastIndex))
+        // Send the RGB values of the color to the activity.
+        hexStringSubject
+                .subscribeOn(backgroundScheduler)
+                .observeOn(mainScheduler)
+                .map {
+                    if (it.length == 7) {
+                        colorCoordinator.parseRgbColor(it)
+                    } else {
+                        RGBColor(255, 255, 255)
+                    }
+                }
+                .map { "${it.red},${it.green},${it.blue}" }
+                .subscribe(rgbStringLiveData::postValue)
+                .addTo(disposables)
     }
-  }
 
-  fun clearClicked() {
-    hexStringSubject.onNext("#")
-  }
-
-  fun digitClicked(digit: String) {
-    if (currentHexValue().length < 7) {
-      hexStringSubject.onNext(currentHexValue() + digit)
+    private fun currentHexValue(): String {
+        return hexStringSubject.value ?: ""
     }
-  }
 
-  override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+    fun backClicked() {
+        if (currentHexValue().length >= 2) {
+            hexStringSubject.onNext(currentHexValue().substring(0, currentHexValue().lastIndex))
+        }
+    }
+
+    fun clearClicked() {
+        hexStringSubject.onNext("#")
+    }
+
+    fun digitClicked(digit: String) {
+        if (currentHexValue().length < 7) {
+            hexStringSubject.onNext(currentHexValue() + digit)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
+    }
 }

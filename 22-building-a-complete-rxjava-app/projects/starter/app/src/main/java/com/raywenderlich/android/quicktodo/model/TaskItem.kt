@@ -29,4 +29,15 @@
  */
 package com.raywenderlich.android.quicktodo.model
 
-class TaskItem
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import java.util.*
+
+@Entity
+data class TaskItem(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int?,
+    val text: String,
+    val addedDate: Date,
+    val isDone: Boolean
+)

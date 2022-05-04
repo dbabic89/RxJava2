@@ -41,34 +41,43 @@ import com.raywenderlich.android.bookcollector.*
 import kotlinx.android.synthetic.main.fragment_discovery.*
 
 class DiscoveryFragment : Fragment(), BookAdapter.BookClickListener {
-  private val adapter = BookAdapter(this)
-  private lateinit var viewModel: MainViewModel
+    private val adapter = BookAdapter(this)
+    private lateinit var viewModel: MainViewModel
 
-  override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-    return inflater.inflate(R.layout.fragment_discovery, container, false)
-  }
+    override fun onCreateView(
+      inflater: LayoutInflater,
+      container: ViewGroup?,
+      savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.fragment_discovery, container, false)
+    }
 
-  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    super.onViewCreated(view, savedInstanceState)
-    viewModel = mainViewModel(view.context)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel = mainViewModel(view.context)
 
-    viewModel.allBooksLiveData.observe(viewLifecycleOwner, Observer {
-      adapter.submitList(it)
-    })
-  }
+        viewModel.allBooksLiveData.observe(viewLifecycleOwner, Observer {
+          adapter.submitList(it)
+        })
+    }
 
-  override fun onActivityCreated(savedInstanceState: Bundle?) {
-    super.onActivityCreated(savedInstanceState)
-    list.layoutManager = LinearLayoutManager(requireContext())
-    list.adapter = adapter
-    list.addItemDecoration(DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL))
-  }
+    override fun onActivityCreated(savedInstanceState: Bundle?) {
+        super.onActivityCreated(savedInstanceState)
+        list.layoutManager = LinearLayoutManager(requireContext())
+        list.adapter = adapter
+        list.addItemDecoration(
+          DividerItemDecoration(
+            requireContext(),
+            DividerItemDecoration.VERTICAL
+          )
+        )
+    }
 
-  override fun favoriteClicked(book: Book) {
-    viewModel.favoriteClicked(book)
-  }
+    override fun favoriteClicked(book: Book) {
+        viewModel.favoriteClicked(book)
+    }
 
-  override fun alreadyReadClicked(book: Book) {
-    viewModel.readClicked(book)
-  }
+    override fun alreadyReadClicked(book: Book) {
+        viewModel.readClicked(book)
+    }
 }

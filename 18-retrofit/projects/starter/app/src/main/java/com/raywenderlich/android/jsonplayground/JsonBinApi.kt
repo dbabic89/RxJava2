@@ -39,18 +39,18 @@ import io.reactivex.rxjava3.core.Single
 import retrofit2.Response
 
 object JsonBinApi {
-  const val API = "https://jsonblob.com/api/"
-  private val service = JsonBinService.create()
+    const val API = "https://jsonblob.com/api/"
+    private val service = JsonBinService.create()
 
-  fun createJson(json: String): Observable<String> {
-    return Observable.empty()
-  }
+    fun createJson(json: String): Observable<JsonCreationResponse> {
+        return service.createJson(json)
+    }
 
-  fun updateJson(bin: String, json: String): Completable {
-    return Completable.complete()
-  }
+    fun updateJson(bin: String, json: String): Completable {
+        return service.updateJson(bin, json)
+    }
 
-  fun getJson(bin: String): Single<Response<String>> {
-    return Single.error(IllegalStateException("TODO!"))
-  }
+    fun getJson(bin: String): Single<Response<String>> {
+        return service.getJson(bin)
+    }
 }

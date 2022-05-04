@@ -48,66 +48,66 @@ import io.reactivex.rxjava3.kotlin.addTo
 import kotlinx.android.synthetic.main.activity_weather.*
 
 class WeatherActivity : AppCompatActivity() {
-  private val disposables = CompositeDisposable()
+    private val disposables = CompositeDisposable()
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_weather)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_weather)
 
-    ActivityCompat.requestPermissions(
-      this,
-      arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-      101
-    )
+        ActivityCompat.requestPermissions(
+          this,
+          arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+          101
+        )
 
-    val model = ViewModelProvider(this, object : ViewModelProvider.Factory {
-      override fun <T : ViewModel?> create(modelClass: Class<T>): T {
-        return WeatherViewModel(lastKnownLocation(this@WeatherActivity), filesDir) as T
-      }
-    }).get(WeatherViewModel::class.java)
+        val model = ViewModelProvider(this, object : ViewModelProvider.Factory {
+          override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+            return WeatherViewModel(lastKnownLocation(this@WeatherActivity), filesDir) as T
+          }
+        }).get(WeatherViewModel::class.java)
 
-    location.clicks().subscribe { model.locationClicked() }.addTo(disposables)
-    city.textChanges().subscribe { model.cityNameChanged(it) }.addTo(disposables)
+        location.clicks().subscribe { model.locationClicked() }.addTo(disposables)
+        city.textChanges().subscribe { model.cityNameChanged(it) }.addTo(disposables)
 
-    model.weatherLiveData.observe(this, Observer<Weather> { weather ->
-      if (weather != null) {
-        updateWeatherReadings(weather)
-      }
-    })
-    model.cityLiveData.observe(this, Observer<String> { cityText ->
-      if (cityText != null) {
-        city.setText(cityText)
-      }
-    })
-    model.snackbarLiveData.observe(this, Observer<String> { error ->
-      if (error != null) {
-        Snackbar.make(root, error, Snackbar.LENGTH_SHORT).show()
-      }
-    })
+        model.weatherLiveData.observe(this, Observer<Weather> { weather ->
+          if (weather != null) {
+            updateWeatherReadings(weather)
+          }
+        })
+        model.cityLiveData.observe(this, Observer<String> { cityText ->
+          if (cityText != null) {
+            city.setText(cityText)
+          }
+        })
+        model.snackbarLiveData.observe(this, Observer<String> { error ->
+          if (error != null) {
+            Snackbar.make(root, error, Snackbar.LENGTH_SHORT).show()
+          }
+        })
 
-    val keyEditText = EditText(this)
-    key.setOnClickListener {
-      AlertDialog.Builder(this)
-        .setTitle("ApiKey")
-        .setMessage("Add the api key")
-        .setView(keyEditText)
-        .setCancelable(true)
-        .setPositiveButton("Ok") { _, _ ->
-          WeatherApi.apiKey.onNext(keyEditText.text.toString())
+        val keyEditText = EditText(this)
+        key.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("ApiKey")
+                .setMessage("Add the api key")
+                .setView(keyEditText)
+                .setCancelable(true)
+                .setPositiveButton("Ok") { _, _ ->
+                    WeatherApi.apiKey.onNext(keyEditText.text.toString())
+                }
+                .show()
         }
-        .show()
     }
-  }
 
-  override fun onStop() {
-    super.onStop()
-    disposables.clear()
-  }
+    override fun onStop() {
+        super.onStop()
+        disposables.clear()
+    }
 
-  @SuppressLint("SetTextI18n")
-  private fun updateWeatherReadings(weather: Weather) {
-    temperature.text = "${weather.temperature} ° C"
-    humidity.text = "${weather.humidity}%"
-    icon.text = weather.icon
-  }
+    @SuppressLint("SetTextI18n")
+    private fun updateWeatherReadings(weather: Weather) {
+        temperature.text = "${weather.temperature} ° C"
+        humidity.text = "${weather.humidity}%"
+        icon.text = weather.icon
+    }
 }

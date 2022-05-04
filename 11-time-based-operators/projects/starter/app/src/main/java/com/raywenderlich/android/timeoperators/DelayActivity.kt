@@ -32,18 +32,43 @@ package com.raywenderlich.android.timeoperators
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.raywenderlich.android.timeoperators.utils.timer
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.subjects.PublishSubject
+import kotlinx.android.synthetic.main.activity_delay.*
+import java.util.concurrent.TimeUnit
 
-class DelayActivity: AppCompatActivity() {
-  private val disposables = CompositeDisposable()
+class DelayActivity : AppCompatActivity() {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_delay)
-  }
+    private val disposables = CompositeDisposable()
+    private val elementsPerSecond = 1
+    private val delayInSeconds = 3L
 
-  override fun onDestroy() {
-    super.onDestroy()
-    disposables.dispose()
-  }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_delay)
+
+        val sourceObservable = PublishSubject.create<Int>()
+
+        var current = 1
+        timer(elementsPerSecond) {
+            sourceObservable.onNext(current)
+            current++
+        }
+
+        sourceObservable.subscribe(source)
+
+        Observable.timer(3, TimeUnit.SECONDS)
+            .flatMap {
+                sourceObservable.delay(delayInSeconds, TimeUnit.SECONDS)
+            }
+            .subscribe(delayed)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        disposables.dispose()
+    }
 }

@@ -29,15 +29,62 @@
  */
 package com.raywenderlich.android.quicktodo.edit
 
+import android.util.Log
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.raywenderlich.android.quicktodo.model.TaskItem
+import com.raywenderlich.android.quicktodo.repository.TaskRepository
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Scheduler
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.Observables
+import io.reactivex.rxjava3.kotlin.addTo
+import java.util.*
 
-class EditTaskViewModel() : ViewModel() {
+class EditTaskViewModel(
+    taskRepository: TaskRepository,
+    backgroundScheduler: Scheduler,
+    taskId: Int,
+    finishedClicks: Observable<Unit>,
+    taskTitleTextChanges: Observable<CharSequence>
+) : ViewModel() {
 
-  private val disposables = CompositeDisposable()
+    val finishLiveData = MutableLiveData<Unit>()
+    val textLiveData = MutableLiveData<String>()
 
-  override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+    private val disposables = CompositeDisposable()
+
+    init {
+        val existingTask = taskRepository.getTask(taskId).cache()
+
+        existingTask
+            .subscribeOn(backgroundScheduler)
+            .subscribe { textLiveData.postValue(it.text) }
+            .addTo(disposables)
+
+        Observables.combineLatest(finishedClicks, taskTitleTextChanges)
+            .map { it.second }
+            .flatMapSingle { title ->
+                existingTask
+                    .defaultIfEmpty(TaskItem(null, title.toString(), Date(), false))
+                    .flatMap {
+                        taskRepository.insertTask(
+                            TaskItem(
+                                it.id,
+                                title.toString(),
+                                Date(),
+                                it.isDone
+                            )
+                        )
+                    }
+                    .subscribeOn(backgroundScheduler)
+            }
+            .subscribe { finishLiveData.postValue(Unit) }
+            .addTo(disposables)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
+    }
 }

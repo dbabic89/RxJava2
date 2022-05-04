@@ -33,26 +33,41 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
+import com.jakewharton.rxbinding4.view.clicks
+import com.jakewharton.rxbinding4.widget.textChanges
 import com.raywenderlich.android.quicktodo.R
-import com.raywenderlich.android.quicktodo.utils.buildViewModel
+import com.raywenderlich.android.quicktodo.database.TaskRoomDatabase
+import com.raywenderlich.android.quicktodo.repository.RoomTaskRepository
+import io.reactivex.rxjava3.schedulers.Schedulers
+import kotlinx.android.synthetic.main.activity_edit_todo.*
 
 class EditTaskActivity : AppCompatActivity() {
 
-  companion object {
-    const val TASK_ID_KEY = "taskIdKey"
-    fun launch(context: Context, taskId: Int) {
-      val intent = Intent(context, EditTaskActivity::class.java)
-      intent.putExtra(TASK_ID_KEY, taskId)
-      context.startActivity(intent)
+    companion object {
+        const val TASK_ID_KEY = "taskIdKey"
+        fun launch(context: Context, taskId: Int) {
+            val intent = Intent(context, EditTaskActivity::class.java)
+            intent.putExtra(TASK_ID_KEY, taskId)
+            context.startActivity(intent)
+        }
     }
-  }
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_edit_todo)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_edit_todo)
 
-    val viewModel = buildViewModel {
-      EditTaskViewModel()
+        val repository = RoomTaskRepository(TaskRoomDatabase.fetchDatabase(this))
+        val taskIdKey = intent.getIntExtra(TASK_ID_KEY, RoomTaskRepository.INVALID_ID)
+        val viewModel = EditTaskViewModel(
+            repository,
+            Schedulers.io(),
+            taskIdKey,
+            done.clicks(),
+            title_input.textChanges()
+        )
+
+        viewModel.textLiveData.observe(this, Observer(title_input::append))
+        viewModel.finishLiveData.observe(this, Observer { finish() })
     }
-  }
 }

@@ -35,16 +35,17 @@
 package com.raywenderlich.android.bestgif.networking
 
 import com.raywenderlich.android.bestgif.GiphyGif
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 
 object GiphyApi {
-  const val API = "http://api.giphy.com/v1/"
-  private const val API_KEY = "INSERT_API_KEY_HERE"
-  private val giphyService = GiphyService.create()
+    const val API = "http://api.giphy.com/v1/"
+    private const val API_KEY = "Tli20lu5VHTgLSEPi0TaHGoWx44vYXQl"
+    private val giphyService = GiphyService.create()
 
-  fun searchForGifs(searchTerm: String): Single<List<GiphyGif>> {
-    return giphyService.getGifs(API_KEY, searchTerm)
-      .map { giphyResponse -> giphyResponse.data.map { it.images.fixed_height } }
-      .onErrorReturn { listOf() }
-  }
+    fun searchForGifs(searchTerm: String): Observable<List<GiphyGif>> {
+        return giphyService.getGifs(API_KEY, searchTerm)
+            .map { giphyResponse -> giphyResponse.data.map { it.images.fixed_height } }
+            .onErrorReturn { listOf() }
+    }
 }

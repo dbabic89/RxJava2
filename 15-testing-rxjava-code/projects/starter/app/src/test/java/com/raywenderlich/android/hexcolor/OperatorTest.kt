@@ -30,11 +30,64 @@
 
 package com.raywenderlich.android.hexcolor
 
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.internal.schedulers.TrampolineScheduler
+import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.schedulers.TestScheduler
 import org.junit.Test
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeUnit.MILLISECONDS
+import java.util.concurrent.TimeUnit.SECONDS
 
 class OperatorTest {
 
-  @Test
-  fun `test concat`() {
-  }
+    @Test
+    fun `test concat`() {
+        val observableA = Observable.just(1)
+        val observableB = Observable.just(2)
+        val observableC = observableA.concatWith(observableB)
+        observableC
+                .test()
+                .assertResult(1, 2)
+                .assertComplete()
+    }
+
+    @Test
+    fun `test amb`() {
+        val scheduler = TestScheduler()
+
+        val observableA = Observable
+                .interval(1, SECONDS, scheduler)
+                .take(3)
+                .map { 5 * it }
+
+        val observableB = Observable
+                .interval(500, MILLISECONDS, scheduler)
+                .take(3)
+                .map { 10 * it }
+
+        val ambObservable = observableA.ambWith(observableB)
+        val testObserver = ambObservable.test()
+
+        scheduler.advanceTimeBy(500, TimeUnit.MILLISECONDS)
+        testObserver.assertValueCount(1)
+        scheduler.advanceTimeBy(1000, TimeUnit.MILLISECONDS)
+        testObserver.assertValueCount(3)
+        testObserver.assertResult(0L, 10L, 20L)
+        testObserver.assertComplete()
+    }
+
+    @Test
+    fun `using trampoline schedulers`() {
+        val observableA =
+                Observable.just(1)
+                        .subscribeOn(TrampolineScheduler.instance())
+
+        val observableB =
+                Observable.just(1)
+                        .subscribeOn(Schedulers.io())
+
+        observableA.test().assertResult(1)
+        observableB.test().assertEmpty()
+    }
 }

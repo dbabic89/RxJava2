@@ -38,21 +38,45 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Geocoder
 import android.location.Location
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import io.reactivex.rxjava3.core.Observable
 import java.util.*
 
 
 @SuppressLint("MissingPermission")
-fun locationUpdates(context: Context): Observable<Location> {
- return Observable.empty()
+fun locationUpdates(
+    context: Context,
+    client: FusedLocationProviderClient = FusedLocationProviderClient(context)
+): Observable<Location> {
+    val currentLocationRequest =
+        LocationRequest()
+            .setInterval(500)
+            .setFastestInterval(0)
+            .setMaxWaitTime(0)
+            .setSmallestDisplacement(0f)
+            .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+    return Observable.create { emitter ->
+        val callback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult?) {
+                result?.lastLocation?.let { emitter.onNext(it) }
+            }
+        }
+        client.requestLocationUpdates(currentLocationRequest, callback, null)
+        emitter.setCancellable {
+            client.removeLocationUpdates(callback)
+        }
+    }
 }
 
 fun cityFromLocation(context: Context, location: Location): String {
-  val gcd = Geocoder(context, Locale.getDefault())
-  val addresses = gcd.getFromLocation(location.latitude, location.longitude, 1)
-  return if (addresses.size > 0) {
-    addresses[0].locality
-  } else {
-    ""
-  }
+    val gcd = Geocoder(context, Locale.getDefault())
+    val addresses = gcd.getFromLocation(location.latitude, location.longitude, 1)
+    return if (addresses.size > 0) {
+        addresses[0].locality
+    } else {
+        ""
+    }
 }

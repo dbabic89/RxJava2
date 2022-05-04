@@ -46,10 +46,10 @@ dependencies {
     implementation "com.github.akarnokd:rxjava3-bridge:3.0.0"
     implementation 'com.jakewharton.rxbinding4:rxbinding:4.0.0'
 
-    def room_version = "2.2.5"
+    def room_version = "2.3.0"
 
     implementation "androidx.room:room-runtime:$room_version"
-    implementation "androidx.room:room-rxjava2:$room_version"
+    implementation "androidx.room:room-rxjava3:$room_version"
     kapt "androidx.room:room-compiler:$room_version"
 
     def paging_version = "2.1.2"

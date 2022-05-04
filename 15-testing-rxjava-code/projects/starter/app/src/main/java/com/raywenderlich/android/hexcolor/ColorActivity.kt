@@ -46,57 +46,57 @@ import kotlinx.android.synthetic.main.activity_color.*
 
 class ColorActivity : AppCompatActivity() {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_color)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_color)
 
 
-    val viewModel = ViewModelProvider(this, object : ViewModelProvider.NewInstanceFactory() {
-      override fun <T : ViewModel?> create(modelClass: Class<T>): T {
-        return ColorViewModel(Schedulers.io(), AndroidSchedulers.mainThread(), ColorCoordinator()) as T
-      }
-    }).get(ColorViewModel::class.java)
+        val viewModel = ViewModelProvider(this, object : ViewModelProvider.NewInstanceFactory() {
+          override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+            return ColorViewModel(Schedulers.io(), AndroidSchedulers.mainThread(), ColorCoordinator()) as T
+          }
+        }).get(ColorViewModel::class.java)
 
-    val digits = listOf(zero, one, two, three, four, five, six, seven, eight, nine, A, B, C, D, E, F)
+        val digits = listOf(zero, one, two, three, four, five, six, seven, eight, nine, A, B, C, D, E, F)
 
-    digits.forEach { textView ->
-      textView.setOnClickListener { viewModel.digitClicked(textView.text.toString()) }
+        digits.forEach { textView ->
+            textView.setOnClickListener { viewModel.digitClicked(textView.text.toString()) }
+        }
+
+        clear.setOnClickListener {
+            viewModel.clearClicked()
+        }
+
+        back.setOnClickListener {
+            viewModel.backClicked()
+        }
+
+        viewModel.hexStringLiveData.observe(this, Observer {
+          hex.text = it
+        })
+
+        viewModel.rgbStringLiveData.observe(this, Observer {
+          rgb.text = it
+        })
+        viewModel.colorNameLiveData.observe(this, Observer {
+          color_name.text = it
+        })
+        viewModel.backgroundColorLiveData.observe(this, Observer {
+          animateColorChange(it)
+        })
     }
 
-    clear.setOnClickListener {
-      viewModel.clearClicked()
+    private fun animateColorChange(newColor: Int) {
+        val colorFrom = root_layout.background as ColorDrawable
+        val colorAnimation = ValueAnimator.ofObject(ArgbEvaluator(), colorFrom.color, newColor)
+        colorAnimation.duration = 250 // milliseconds
+        colorAnimation.addUpdateListener { animator ->
+            val color = animator.animatedValue as Int
+            root_layout.setBackgroundColor(color)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                window.statusBarColor = color
+            }
+        }
+        colorAnimation.start()
     }
-
-    back.setOnClickListener {
-      viewModel.backClicked()
-    }
-
-    viewModel.hexStringLiveData.observe(this, Observer {
-      hex.text = it
-    })
-
-    viewModel.rgbStringLiveData.observe(this, Observer {
-      rgb.text = it
-    })
-    viewModel.colorNameLiveData.observe(this, Observer {
-      color_name.text = it
-    })
-    viewModel.backgroundColorLiveData.observe(this, Observer {
-      animateColorChange(it)
-    })
-  }
-
-  private fun animateColorChange(newColor: Int) {
-    val colorFrom = root_layout.background as ColorDrawable
-    val colorAnimation = ValueAnimator.ofObject(ArgbEvaluator(), colorFrom.color, newColor)
-    colorAnimation.duration = 250 // milliseconds
-    colorAnimation.addUpdateListener { animator ->
-      val color = animator.animatedValue as Int
-      root_layout.setBackgroundColor(color)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        window.statusBarColor = color
-      }
-    }
-    colorAnimation.start()
-  }
 }

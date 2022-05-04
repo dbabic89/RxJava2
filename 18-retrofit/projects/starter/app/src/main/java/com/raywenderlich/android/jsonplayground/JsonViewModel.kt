@@ -35,33 +35,72 @@ package com.raywenderlich.android.jsonplayground
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.Observables
+import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 
 class JsonViewModel : ViewModel() {
 
-  private val clicks = PublishSubject.create<Unit>()
-  private val keyChanges = BehaviorSubject.create<CharSequence>()
-  private val valueChanges = BehaviorSubject.create<CharSequence>()
+    private val clicks = PublishSubject.create<Unit>()
+    private val keyChanges = BehaviorSubject.create<CharSequence>()
+    private val valueChanges = BehaviorSubject.create<CharSequence>()
 
-  val jsonTextLiveData = MutableLiveData<String>()
-  val errorLiveData = MutableLiveData<String>()
+    val jsonTextLiveData = MutableLiveData<String>()
+    val errorLiveData = MutableLiveData<String>()
 
-  private val disposables = CompositeDisposable()
+    private val disposables = CompositeDisposable()
 
-  init {
+    init {
+        val buttonObservable = clicks.flatMap {
+            Observables.combineLatest(keyChanges, valueChanges).take(1)
+        }
+                .share()
 
-  }
+        val creationObservable = buttonObservable
+                .map { "{\"${it.first}\":\"${it.second}\"}" }.doOnNext { jsonTextLiveData.postValue(it) } // 3
+                .flatMap { JsonBinApi.createJson(it).subscribeOn(Schedulers.io()) }
+                .map { it.uri.substringAfterLast("/") }
+                .cache()
+        creationObservable
+                .subscribe()
+                .addTo(disposables)
 
-  fun onClick() = clicks.onNext(Unit)
+        val updateObservable = creationObservable
+                .flatMap { binId ->
+                    buttonObservable
+                            .subscribeOn(AndroidSchedulers.mainThread())
+                            .map { createNewJsonString(it.first, it.second, jsonTextLiveData.value!!) }
+                            .map { binId to it }
+                }
+                .flatMap { pair ->
+                    JsonBinApi
+                            .updateJson(pair.first, pair.second)
+                            .andThen(JsonBinApi.getJson(pair.first))
+                            .toObservable()
+                            .subscribeOn(Schedulers.io())
+                }
 
-  fun onKeyChange(key: CharSequence) = keyChanges.onNext(key)
+        updateObservable.subscribe {
+            if (it.isSuccessful) {
+                jsonTextLiveData.postValue(it.body())
+            } else {
+                errorLiveData.postValue("Whoops, we got an error!")
+            }
+        }.addTo(disposables)
+    }
 
-  fun onValueChange(value: CharSequence) = valueChanges.onNext(value)
+    fun onClick() = clicks.onNext(Unit)
 
-  override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+    fun onKeyChange(key: CharSequence) = keyChanges.onNext(key)
+
+    fun onValueChange(value: CharSequence) = valueChanges.onNext(value)
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
+    }
 }

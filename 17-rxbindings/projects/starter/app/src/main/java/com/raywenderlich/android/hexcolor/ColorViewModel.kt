@@ -33,92 +33,102 @@ package com.raywenderlich.android.hexcolor
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.raywenderlich.android.hexcolor.networking.ColorApi
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Scheduler
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 
-class ColorViewModel(backgroundScheduler: Scheduler,
-                     mainScheduler: Scheduler,
-                     colorCoordinator: ColorCoordinator) : ViewModel() {
+class ColorViewModel(
+    backgroundScheduler: Scheduler,
+    mainScheduler: Scheduler,
+    colorCoordinator: ColorCoordinator,
+    clearStream: Observable<Unit>,
+    backStream: Observable<Unit>,
+    digitsStream: Observable<String>,
+    colorApi: ColorApi
+) : ViewModel() {
 
-  val hexStringSubject = BehaviorSubject.createDefault("#")
-  val hexStringLiveData = MutableLiveData<String>()
-  val backgroundColorLiveData = MutableLiveData<Int>()
-  val rgbStringLiveData = MutableLiveData<String>()
-  val colorNameLiveData = MutableLiveData<String>()
+    val hexStringSubject = BehaviorSubject.createDefault("#")
+    val hexStringLiveData = MutableLiveData<String>()
+    val backgroundColorLiveData = MutableLiveData<Int>()
+    val rgbStringLiveData = MutableLiveData<String>()
+    val colorNameLiveData = MutableLiveData<String>()
 
-  private val disposables = CompositeDisposable()
+    private val disposables = CompositeDisposable()
 
-  init {
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .subscribe(hexStringLiveData::postValue)
-        .addTo(disposables)
+    init {
+        hexStringSubject
+            .subscribeOn(backgroundScheduler)
+            .observeOn(mainScheduler)
+            .subscribe(hexStringLiveData::postValue)
+            .addTo(disposables)
 
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .map { if (it.length < 7) "#000000" else it }
-        .map { colorCoordinator.parseColor(it) }
-        .subscribe(backgroundColorLiveData::postValue)
-        .addTo(disposables)
+        hexStringSubject
+            .subscribeOn(backgroundScheduler)
+            .observeOn(mainScheduler)
+            .map { if (it.length < 7) "#000000" else it }
+            .map { colorCoordinator.parseColor(it) }
+            .subscribe(backgroundColorLiveData::postValue)
+            .addTo(disposables)
 
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .filter { it.length < 7 }
-        .map { "--" }
-        .subscribe(colorNameLiveData::postValue)
-        .addTo(disposables)
+        hexStringSubject
+            .subscribeOn(backgroundScheduler)
+            .observeOn(mainScheduler)
+            .filter { it.length < 7 }
+            .map { "--" }
+            .subscribe(colorNameLiveData::postValue)
+            .addTo(disposables)
 
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .filter { hexString -> ColorName.values().map { it.hex }.contains(hexString) }
-        .map { hexString -> ColorName.values().first { it.hex == hexString } }
-        .map { it.toString() }
-        .subscribe(colorNameLiveData::postValue)
-        .addTo(disposables)
+        hexStringSubject
+            .filter { it.length == 7 }
+            .observeOn(mainScheduler)
+            .flatMap { colorApi.getClosestColor(it).subscribeOn(backgroundScheduler) }
+            .map { it.name.value }
+            .subscribe(colorNameLiveData::postValue)
+            .addTo(disposables)
 
-    hexStringSubject
-        .subscribeOn(backgroundScheduler)
-        .observeOn(mainScheduler)
-        .map {
-          if (it.length == 7) {
-            colorCoordinator.parseRgbColor(it)
-          } else {
-            RGBColor(255, 255, 255)
-          }
-        }
-        .map { "${it.red},${it.green},${it.blue}" }
-        .subscribe(rgbStringLiveData::postValue)
-        .addTo(disposables)
-  }
+        hexStringSubject
+            .subscribeOn(backgroundScheduler)
+            .observeOn(mainScheduler)
+            .map {
+                if (it.length == 7) {
+                    colorCoordinator.parseRgbColor(it)
+                } else {
+                    RGBColor(255, 255, 255)
+                }
+            }
+            .map { "${it.red},${it.green},${it.blue}" }
+            .subscribe(rgbStringLiveData::postValue)
+            .addTo(disposables)
 
-  private fun currentHexValue(): String {
-    return hexStringSubject.value ?: ""
-  }
+        clearStream
+            .map { "#" }
+            .subscribe(hexStringSubject::onNext)
+            .addTo(disposables)
 
-  fun backClicked() {
-    if (currentHexValue().length >= 2) {
-      hexStringSubject.onNext(currentHexValue().substring(0, currentHexValue().lastIndex))
+        backStream
+            .map { currentHexValue() }
+            .filter { it.length >= 2 }
+            .map { it.substring(0, currentHexValue().lastIndex) }
+            .subscribe(hexStringSubject::onNext)
+            .addTo(disposables)
+
+        digitsStream
+            .map { it to currentHexValue() }
+            .filter { it.second.length < 7 }
+            .map { it.second + it.first }
+            .subscribe(hexStringSubject::onNext)
+            .addTo(disposables)
     }
-  }
 
-  fun clearClicked() {
-    hexStringSubject.onNext("#")
-  }
-
-  fun digitClicked(digit: String) {
-    if (currentHexValue().length < 7) {
-      hexStringSubject.onNext(currentHexValue() + digit)
+    private fun currentHexValue(): String {
+        return hexStringSubject.value ?: ""
     }
-  }
 
-  override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
+    }
 }

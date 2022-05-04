@@ -31,12 +31,19 @@ package com.raywenderlich.android.quicktodo.list
 
 import androidx.recyclerview.widget.DiffUtil
 
-class TodoDiffUtil: DiffUtil.ItemCallback<TodoListItem>() {
-  override fun areItemsTheSame(oldItem: TodoListItem, newItem: TodoListItem): Boolean {
-   return false
-  }
+class TodoDiffUtil : DiffUtil.ItemCallback<TodoListItem>() {
+    override fun areItemsTheSame(oldItem: TodoListItem, newItem: TodoListItem): Boolean {
+        return when (oldItem) {
+            TodoListItem.DueTasks -> newItem is TodoListItem.DueTasks
+            TodoListItem.DoneTasks -> newItem is TodoListItem.DoneTasks
+            is TodoListItem.TaskListItem -> {
+                if (newItem !is TodoListItem.TaskListItem) return false
+                oldItem.task.id == newItem.task.id
+            }
+        }
+    }
 
-  override fun areContentsTheSame(oldItem: TodoListItem, newItem: TodoListItem): Boolean {
-    return false
-  }
+    override fun areContentsTheSame(oldItem: TodoListItem, newItem: TodoListItem): Boolean {
+        return oldItem == newItem
+    }
 }

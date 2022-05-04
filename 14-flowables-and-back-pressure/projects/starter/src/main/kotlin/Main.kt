@@ -1,3 +1,13 @@
+import io.reactivex.rxjava3.core.BackpressureOverflowStrategy
+import io.reactivex.rxjava3.core.BackpressureStrategy
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.kotlin.Flowables
+import io.reactivex.rxjava3.kotlin.Observables
+import io.reactivex.rxjava3.processors.PublishProcessor
+import io.reactivex.rxjava3.schedulers.Schedulers
+import java.util.concurrent.TimeUnit
+
 /*
  * Copyright (c) 2020 Razeware LLC
  *
@@ -29,4 +39,126 @@
  */
 
 fun main(args: Array<String>) {
+
+//    exampleOf("Zipping observable") {
+//        val fastObservable = Observable.interval(1, TimeUnit.MILLISECONDS)
+//        val slowObservable = Observable.interval(1, TimeUnit.SECONDS)
+//
+//        val disposable =
+//            Observables.zip(slowObservable, fastObservable) { first, second ->
+//                first to second
+//            }
+//                .subscribeOn(Schedulers.io()).subscribe { (first, second) ->
+//                    println("Got $first and $second")
+//                }
+//        safeSleep(5000)
+//        disposable.dispose()
+//    }
+
+//    exampleOf("Overflowing observer") {
+//        val disposable = Observable.range(1, 10_000_000)
+//            .subscribeOn(Schedulers.io())
+//            .map {
+//                LongArray(1024 * 8)
+//            }
+//            .subscribe {
+//                println("Free memory: ${freeMemory()}")
+//                safeSleep(100)
+//            }
+//        safeSleep(20_000)
+//        disposable.dispose()
+//    }
+
+//    exampleOf("Zipping flowable") {
+//        val slowFlowable = Flowable.interval(1, TimeUnit.SECONDS)
+//        val fastFlowable = Flowable.interval(1, TimeUnit.MILLISECONDS)
+//            .onBackpressureDrop { println("Dropping $it") }
+//        val disposable =
+//            Flowables.zip(slowFlowable, fastFlowable) { first, second ->
+//                first to second
+//            }
+//                .subscribeOn(Schedulers.io()).observeOn(Schedulers.newThread()).subscribe { (first, second) ->
+//                    println("Got $first and $second")
+//                }
+//        safeSleep(5000)
+//        disposable.dispose()
+//    }
+
+//    exampleOf("onBackPressureBuffer") {
+//        val disposable = Flowable.range(1, 100)
+//            .subscribeOn(Schedulers.io())
+//            .onBackpressureBuffer(
+//                50,
+//                { println("Buffer overrun; dropping latest") },
+//                BackpressureOverflowStrategy.DROP_LATEST
+//            )
+//            .observeOn(Schedulers.newThread(), false, 1)
+//            .doOnComplete { println("We're done!") }
+//            .subscribe {
+//                println("Integer: $it")
+//                safeSleep(50)
+//            }
+//        safeSleep(1000)
+//        disposable.dispose()
+//    }
+
+//    exampleOf("onBackPressureLatest") {
+//        val disposable = Flowable.range(1, 100)
+//            .subscribeOn(Schedulers.io())
+//            .onBackpressureLatest()
+//            .observeOn(Schedulers.newThread(), false, 1)
+//            .doOnComplete { println("We're done!") }
+//            .subscribe {
+//                println("Integer: $it")
+//                safeSleep(50)
+//            }
+//        safeSleep(1000)
+//        disposable.dispose()
+//    }
+
+//    exampleOf("No backpressure") {
+//        val disposable = Flowable.range(1, 100)
+//            .subscribeOn(Schedulers.io())
+//            .observeOn(Schedulers.newThread(), false, 1)
+//            .doOnComplete { println("We're done!") }
+//            .subscribe {
+//                println("Integer: $it")
+//                safeSleep(50)
+//            }
+//        safeSleep(1000)
+//        disposable.dispose()
+//    }
+
+//    exampleOf("toFlowable") {
+//        val disposable = Observable.range(1, 100)
+//            .toFlowable(BackpressureStrategy.BUFFER)
+//            .subscribeOn(Schedulers.io())
+//            .observeOn(Schedulers.newThread(), false, 1)
+//            .subscribe {
+//                println("Integer: $it")
+//                safeSleep(50)
+//            }
+//        safeSleep(1000)
+//        disposable.dispose()
+//    }
+
+    exampleOf("Processor") {
+        val processor = PublishProcessor.create<Int>()
+        val disposable = processor
+            .onBackpressureDrop { println("Dropping $it") }
+            .observeOn(Schedulers.newThread(), false, 1)
+            .subscribe {
+                println("Integer: $it")
+                safeSleep(50)
+            }
+
+        Thread().run {
+            for (i in 0..100) {
+                processor.onNext(i)
+                safeSleep(5)
+            }
+        }
+        safeSleep(1000)
+        disposable.dispose()
+    }
 }

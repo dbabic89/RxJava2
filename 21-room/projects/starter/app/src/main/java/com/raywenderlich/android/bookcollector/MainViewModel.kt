@@ -31,54 +31,46 @@ package com.raywenderlich.android.bookcollector
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.paging.PagedList
+import androidx.paging.RxPagedListBuilder
 import com.raywenderlich.android.bookcollector.database.BookDatabase
 import com.raywenderlich.android.bookcollector.networking.OpenLibraryApi
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
+import java.util.concurrent.TimeUnit
 
 class MainViewModel(private val database: BookDatabase) : ViewModel() {
 
-  val allBooksLiveData = MutableLiveData<List<Book>>()
-  val favoriteBooksLiveData = MutableLiveData<List<Book>>()
-  val alreadyReadBooksLiveData = MutableLiveData<List<Book>>()
-  private val disposables = CompositeDisposable()
+    val allBooksLiveData = MutableLiveData<PagedList<Book>>()
+    val favoriteBooksLiveData = MutableLiveData<PagedList<Book>>()
+    val alreadyReadBooksLiveData = MutableLiveData<PagedList<Book>>()
+    
+    private val disposables = CompositeDisposable()
 
-  init {
-    val observable = OpenLibraryApi.searchBooks("Lord of the Rings")
-        .subscribeOn(Schedulers.io())
-        .cache()
+    init {
+        val config = PagedList.Config.Builder()
+            .setEnablePlaceholders(false)
+            .setPageSize(20)
+            .build()
 
-    observable
-        .subscribeBy(
-            onSuccess = { item -> allBooksLiveData.postValue(item) },
-            onError = { print("Error: $it") }
-        )
-        .addTo(disposables)
+        RxPagedListBuilder(database.bookDao().bookStream(), config)
+            .buildObservable()
+            .subscribe(allBooksLiveData::postValue)
+    }
 
-    observable
-        .map { books -> books.filter { it.isFavorited } }
-        .subscribeBy(
-            onSuccess = { item -> favoriteBooksLiveData.postValue(item) },
-            onError = { print("Error: $it") }
-        )
-        .addTo(disposables)
+    fun favoriteClicked(book: Book) {
+        database.bookDao()
+            .updateBook(book.copy(isFavorited = !book.isFavorited))
+            .subscribeOn(Schedulers.io())
+            .subscribe()
+    }
 
-    observable
-        .map { books -> books.filter { it.isAlreadyRead } }
-        .subscribeBy(
-            onSuccess = { item -> alreadyReadBooksLiveData.postValue(item) },
-            onError = { print("Error: $it") }
-        )
-        .addTo(disposables)
-  }
-
-  fun favoriteClicked(book: Book) {
-    TODO()
-  }
-
-  fun readClicked(book: Book) {
-    TODO()
-  }
+    fun readClicked(book: Book) {
+        database.bookDao()
+            .updateBook(book.copy(isAlreadyRead = !book.isAlreadyRead))
+            .subscribeOn(Schedulers.io())
+            .subscribe()
+    }
 }

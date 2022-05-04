@@ -32,18 +32,59 @@ package com.raywenderlich.android.timeoperators
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.raywenderlich.android.timeoperators.utils.timer
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.subjects.PublishSubject
+import kotlinx.android.synthetic.main.activity_window.*
+import java.util.concurrent.TimeUnit
 
-class WindowActivity: AppCompatActivity() {
-  private val disposables = CompositeDisposable()
+class WindowActivity : AppCompatActivity() {
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_window)
-  }
+    private val disposables = CompositeDisposable()
 
-  override fun onDestroy() {
-    super.onDestroy()
-    disposables.dispose()
-  }
+    private val elementsPerSecond = 3
+    private val windowTimeSpan = 4L
+    private val windowMaxCount = 10L
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_window)
+
+        val sourceObservable = PublishSubject.create<String>()
+
+        timer(elementsPerSecond) {
+            sourceObservable.onNext("X")
+        }.addTo(disposables)
+
+        sourceObservable.subscribe(windowSource)
+
+        sourceObservable.window(
+            windowTimeSpan,
+            TimeUnit.SECONDS,
+            AndroidSchedulers.mainThread(),
+            windowMaxCount
+        )
+            .flatMap { windowedObservable ->
+                val marbleView = MarbleView(this)
+                marble_views.addView(marbleView)
+                windowedObservable.map { value -> value to marbleView }
+                    .concatWith(Observable.just("" to marbleView))
+            }
+            .subscribe { pair ->
+                val (value, marbleView) = pair
+                if (value.isEmpty()) {
+                    marbleView.onComplete()
+                } else {
+                    marbleView.onNext(value)
+                }
+            }.addTo(disposables)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        disposables.dispose()
+    }
 }

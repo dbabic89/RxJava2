@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2020 Razeware LLC
  *
@@ -34,17 +33,43 @@ package com.raywenderlich.android.hexcolor
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.raywenderlich.android.hexcolor.networking.ColorApi
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.schedulers.Schedulers
 
-class ColorBottomSheetViewModel(startingColor: String): ViewModel() {
-  val showLoadingLiveData = MutableLiveData<Boolean>()
-  val colorNameLiveData = MutableLiveData<String>()
-  val closestColorLiveData = MutableLiveData<String>()
+class ColorBottomSheetViewModel(
+    startingColor: String,
+    searchObservable: Observable<String>
+) : ViewModel() {
 
-  private val disposables = CompositeDisposable()
+    val showLoadingLiveData = MutableLiveData<Boolean>()
+    val colorNameLiveData = MutableLiveData<String>()
+    val closestColorLiveData = MutableLiveData<String>()
 
-  override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+    private val disposables = CompositeDisposable()
+
+    init {
+        val colorObservable = searchObservable
+            .startWith(Observable.just(startingColor))
+            .filter { it.length == 7 }
+            .flatMap { ColorApi.getClosestColor(it).subscribeOn(Schedulers.io()) }
+            .map { it.name }
+            .share()
+
+        colorObservable
+            .subscribe { colorNameLiveData.postValue(it.value) }
+            .addTo(disposables)
+
+        colorObservable.subscribe {
+            closestColorLiveData.postValue(it.closest_named_hex)
+        }
+            .addTo(disposables)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
+    }
 }

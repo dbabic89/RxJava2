@@ -45,85 +45,87 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-class WeatherViewModel(private val lastKnownLocation: Maybe<Location>, private val filesDir: File) :
-  ViewModel() {
+class WeatherViewModel(
+    private val lastKnownLocation: Maybe<Location>,
+    private val filesDir: File
+) : ViewModel() {
 
-  private val disposables = CompositeDisposable()
-  private val locationClicks = PublishSubject.create<Unit>()
-  private val cityNameChanges = PublishSubject.create<CharSequence>()
-  private val saveClicks = PublishSubject.create<Unit>()
-  private val readSavedClicks = PublishSubject.create<Unit>()
-  private val cache = mutableMapOf<String, Weather>()
-  private val maxAttempts = 4
-  val cityLiveData = MutableLiveData<String>()
-  val weatherLiveData = MutableLiveData<Weather>()
-  val snackbarLiveData = MutableLiveData<String>()
+    private val disposables = CompositeDisposable()
+    private val locationClicks = PublishSubject.create<Unit>()
+    private val cityNameChanges = PublishSubject.create<CharSequence>()
+    private val saveClicks = PublishSubject.create<Unit>()
+    private val readSavedClicks = PublishSubject.create<Unit>()
+    private val cache = mutableMapOf<String, Weather>()
+    private val maxAttempts = 4
+    val cityLiveData = MutableLiveData<String>()
+    val weatherLiveData = MutableLiveData<Weather>()
+    val snackbarLiveData = MutableLiveData<String>()
 
-  init {
-    val locationObservable = locationClicks
-      .doOnNext { cityLiveData.postValue("Current Location") }
-      .flatMapMaybe { lastKnownLocation }
-      .flatMapSingle { WeatherApi.getWeather(it) }
-      .onErrorReturnItem(WeatherApi.NetworkResult.Success(Weather.empty))
+    init {
+//        val locationObservable = locationClicks
+//            .doOnNext { cityLiveData.postValue("Current Location") }
+//            .flatMapMaybe { lastKnownLocation }
+//            .flatMapSingle { WeatherApi.getWeather(it) }
+//            .onErrorReturnItem(WeatherApi.NetworkResult.Success(Weather.empty))
 
-    val textObservable = cityNameChanges
-      .skip(1)
-      .debounce(1, TimeUnit.SECONDS)
-      .filter { it.toString() != "Current Location" }
-      .flatMapSingle { cityName -> getWeatherForLocationName(cityName.toString()) }
-      .onErrorReturnItem(WeatherApi.NetworkResult.Success(Weather.empty))
+        val textObservable = cityNameChanges
+            .skip(1)
+            .debounce(1, TimeUnit.SECONDS)
+            .filter { it.toString() != "Current Location" }
+            .flatMapSingle { cityName -> getWeatherForLocationName(cityName.toString()) }
+            .onErrorReturnItem(WeatherApi.NetworkResult.Success(Weather.empty))
 
-    Observable.merge(locationObservable, textObservable)
-      .subscribeOn(Schedulers.io())
-      .observeOn(AndroidSchedulers.mainThread())
-      .subscribe(this::showNetworkResult)
-      .addTo(disposables)
-  }
-
-  fun locationClicked() = locationClicks.onNext(Unit)
-
-  fun cityNameChanged(name: CharSequence) = cityNameChanges.onNext(name)
-
-  fun saveClicked() = saveClicks.onNext(Unit)
-
-  fun readSaveClicked() = readSavedClicks.onNext(Unit)
-
-  private fun getWeatherForLocationName(name: String): Single<WeatherApi.NetworkResult> {
-    return WeatherApi.getWeather(name)
-      .retryWhen { errors ->
-        return@retryWhen errors
-          .scan(1) { count, error ->
-            if (count > maxAttempts) {
-              throw error
-            }
-            count + 1
-          }
-          .flatMap { Flowable.timer(it.toLong(), TimeUnit.SECONDS) }
-      }
-      .onErrorReturn {
-        val cachedItem = cache[name] ?: Weather.empty
-        WeatherApi.NetworkResult.Success(cachedItem)
-      }
-  }
-
-  private fun showNetworkResult(networkResult: WeatherApi.NetworkResult) {
-    when (networkResult) {
-      is WeatherApi.NetworkResult.Success -> {
-        cache[networkResult.weather.cityName] = networkResult.weather
-        weatherLiveData.postValue(networkResult.weather)
-      }
-      is WeatherApi.NetworkResult.Failure -> {
-        when (networkResult.error) {
-          WeatherApi.NetworkError.InvalidKey -> snackbarLiveData.postValue("Invalid Key")
-          WeatherApi.NetworkError.ServerFailure -> snackbarLiveData.postValue("Server Failure")
-          WeatherApi.NetworkError.CityNotFound -> snackbarLiveData.postValue("City Not Found")
-        }
-      }
+        Observable.merge(locationObservable, textObservable)
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(this::showNetworkResult)
+            .addTo(disposables)
     }
-  }
 
-  override fun onCleared() {
-    super.onCleared()
-    disposables.clear()
-  }
+    fun locationClicked() = locationClicks.onNext(Unit)
+
+    fun cityNameChanged(name: CharSequence) = cityNameChanges.onNext(name)
+
+    fun saveClicked() = saveClicks.onNext(Unit)
+
+    fun readSaveClicked() = readSavedClicks.onNext(Unit)
+
+    private fun getWeatherForLocationName(name: String): Single<WeatherApi.NetworkResult> {
+        return WeatherApi.getWeather(name)
+            .retryWhen { errors ->
+                return@retryWhen errors
+                    .scan(1) { count, error ->
+                        if (count > maxAttempts) {
+                            throw error
+                        }
+                        count + 1
+                    }
+                    .flatMap { Flowable.timer(it.toLong(), TimeUnit.SECONDS) }
+            }
+            .onErrorReturn {
+                val cachedItem = cache[name] ?: Weather.empty
+                WeatherApi.NetworkResult.Success(cachedItem)
+            }
+    }
+
+    private fun showNetworkResult(networkResult: WeatherApi.NetworkResult) {
+        when (networkResult) {
+            is WeatherApi.NetworkResult.Success -> {
+                cache[networkResult.weather.cityName] = networkResult.weather
+                weatherLiveData.postValue(networkResult.weather)
+            }
+            is WeatherApi.NetworkResult.Failure -> {
+                when (networkResult.error) {
+                    WeatherApi.NetworkError.InvalidKey -> snackbarLiveData.postValue("Invalid Key")
+                    WeatherApi.NetworkError.ServerFailure -> snackbarLiveData.postValue("Server Failure")
+                    WeatherApi.NetworkError.CityNotFound -> snackbarLiveData.postValue("City Not Found")
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.clear()
+    }
 }

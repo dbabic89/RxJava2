@@ -29,4 +29,15 @@
  */
 package com.raywenderlich.android.quicktodo.repository
 
-interface TaskRepository
+import com.raywenderlich.android.quicktodo.model.TaskItem
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
+
+interface TaskRepository {
+    fun insertTask(taskItem: TaskItem): Single<Long>
+    fun getTask(id: Int): Maybe<TaskItem>
+    fun taskStream(): Observable<List<TaskItem>>
+    fun deleteTask(taskItem: TaskItem): Completable
+}

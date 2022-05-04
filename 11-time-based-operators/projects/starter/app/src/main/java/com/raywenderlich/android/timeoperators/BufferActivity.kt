@@ -32,18 +32,42 @@ package com.raywenderlich.android.timeoperators
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.raywenderlich.android.timeoperators.utils.dispatchAfter
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.subjects.PublishSubject
+import kotlinx.android.synthetic.main.activity_buffer.*
+import java.util.concurrent.TimeUnit
 
 class BufferActivity : AppCompatActivity() {
-  private val disposables = CompositeDisposable()
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_buffer)
-  }
+    private val disposables = CompositeDisposable()
 
-  override fun onDestroy() {
-    super.onDestroy()
-    disposables.dispose()
-  }
+    private val bufferMaxCount = 2
+    private val bufferTimeSpan = 4L
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_buffer)
+
+
+        val sourceObservable = PublishSubject.create<String>()
+
+        sourceObservable.subscribe(buffer_1)
+
+        sourceObservable
+            .buffer(bufferTimeSpan, TimeUnit.SECONDS, bufferMaxCount)
+            .map { it.size }
+            .subscribe(buffer_2)
+
+        dispatchAfter(5000) {
+            sourceObservable.onNext("A")
+            sourceObservable.onNext("B")
+            sourceObservable.onNext("C")
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        disposables.dispose()
+    }
 }

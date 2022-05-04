@@ -29,8 +29,20 @@
  */
 package com.raywenderlich.android.bookcollector.database
 
-import androidx.room.Dao
+import androidx.paging.DataSource
+import androidx.room.*
+import com.raywenderlich.android.bookcollector.Book
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 
 @Dao
 interface BookDao {
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insertBooks(books: List<Book>): Completable
+
+    @Query("SELECT * from book ORDER BY title")
+    fun bookStream(): DataSource.Factory<Int, Book>
+
+    @Update(onConflict = OnConflictStrategy.REPLACE)
+    fun updateBook(book: Book): Single<Int>
 }

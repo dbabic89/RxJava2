@@ -34,26 +34,39 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.raywenderlich.android.quicktodo.model.TaskItem
+import io.reactivex.rxjava3.schedulers.Schedulers
+import java.util.*
 
 object TaskRoomDatabase {
-  private var database: TaskDatabase? = null
+    private var database: TaskDatabase? = null
 
-  fun fetchDatabase(context: Context): TaskDatabase {
-    val localDatabaseCopy = database
-    return if (localDatabaseCopy != null) {
-      localDatabaseCopy
-    } else {
-      val localDatabase = Room.databaseBuilder(context.applicationContext,
-          TaskDatabase::class.java, "book_database")
-          .addCallback(object : RoomDatabase.Callback() {
-            @SuppressLint("CheckResult")
-            override fun onCreate(db: SupportSQLiteDatabase) {
-              TODO("Add default items")
-            }
-          })
-          .build()
-      database = localDatabase
-      localDatabase
+    fun fetchDatabase(context: Context): TaskDatabase {
+        val localDatabaseCopy = database
+        return if (localDatabaseCopy != null) {
+            localDatabaseCopy
+        } else {
+            val localDatabase = Room.databaseBuilder(
+                context.applicationContext,
+                TaskDatabase::class.java, "book_database"
+            )
+                .addCallback(object : RoomDatabase.Callback() {
+                    @SuppressLint("CheckResult")
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        database!!.taskDao().insertTasks(
+                            listOf(
+                                TaskItem(null, "Chapter 1: Hello, RxJava!", Date(), false),
+                                TaskItem(null, "Chapter 2: Observables", Date(), false),
+                                TaskItem(null, "Chapter 3: Subjects", Date(), false),
+                                TaskItem(null, "Chapter 4: Observables and Subjects in practice", Date(), false),
+                                TaskItem(null, "Chapter 5: Filtering operators", Date(), false)
+                            )
+                        ).subscribeOn(Schedulers.io()).subscribe()
+                    }
+                })
+                .build()
+            database = localDatabase
+            localDatabase
+        }
     }
-  }
 }

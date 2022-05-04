@@ -34,6 +34,7 @@
 
 package com.raywenderlich.android.bestgif.networking
 
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -70,5 +71,5 @@ interface GiphyService {
   fun getGifs(
       @Query("api_key") apiKey: String,
       @Query("q") searchParam: String
-  ): Single<GiphyResponse>
+  ): Observable<GiphyResponse>
 }

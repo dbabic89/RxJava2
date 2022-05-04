@@ -31,65 +31,74 @@
 package com.raywenderlich.android.wundercast
 
 import android.location.Location
-import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import retrofit2.Response
 
 object WeatherApi {
-  val API = "https://api.openweathermap.org/data/2.5/"
-  val apiKey = BehaviorSubject.createDefault("INSERT_YOUR_API_KEY_HERE")
+    val API = "https://api.openweathermap.org/data/2.5/"
+    val apiKey = BehaviorSubject.createDefault("82425a528f72f6646c1ab03f6b18f7c5")
 
-  private val weather by lazy {
-    WeatherService.create()
-  }
-
-  fun getWeather(city: String): Single<Weather> {
-    return weather.getWeather(city, apiKey.value)
-        .flatMap(this::weatherResponseObservable)
-  }
-
-  fun getWeather(location: Location): Single<Weather> {
-    return weather.getWeather(location.latitude, location.longitude, apiKey.value)
-        .flatMap(this::weatherResponseObservable)
-  }
-
-  private fun weatherResponseObservable(response: Response<WeatherNetworkModel>): Single<Weather> {
-    return if (!response.isSuccessful) {
-      Single.error(IllegalStateException(response.message()))
-    } else {
-      Single.just(response.body()!!).map {
-        val weather = it.toWeather()
-        weather.copy(icon = iconNameToChar(weather.icon))
-      }
+    private val weather by lazy {
+        WeatherService.create()
     }
-  }
 
-  fun iconNameToChar(icon: String): String {
-    return when (icon) {
-      "01d" -> "\uf11b"
-      "01n" -> "\uf110"
-      "02d" -> "\uf112"
-      "02n" -> "\uf104"
-      "03d", "03n" -> "\uf111"
-      "04d", "04n" -> "\uf111"
-      "09d", "09n" -> "\uf116"
-      "10d", "10n" -> "\uf113"
-      "11d", "11n" -> "\uf10d"
-      "13d", "13n" -> "\uf119"
-      "50d", "50n" -> "\uf10e"
-      else -> "E"
+    fun getWeather(city: String): Observable<NetworkResult> {
+        return weather.getWeather(city, apiKey.value ?: return Observable.empty())
+            .map(this::mapWeatherResponse)
     }
-  }
 
-  sealed class NetworkResult {
-    class Success(val weather: Weather) : NetworkResult()
-    class Failure(val error: NetworkError) : NetworkResult()
-  }
+    fun getWeather(location: Location): Observable<NetworkResult> {
+        return weather.getWeather(
+            location.latitude,
+            location.longitude,
+            apiKey.value ?: return Observable.empty()
+        )
+            .map(this::mapWeatherResponse)
+    }
 
-  sealed class NetworkError : Exception() {
-    object ServerFailure : NetworkError()
-    object CityNotFound : NetworkError()
-  }
+    private fun mapWeatherResponse(response: Response<WeatherNetworkModel>): NetworkResult {
+        return when (response.code()) {
+            in 200..300 -> {
+                val body = response.body()
+                if (body != null) {
+                    NetworkResult.Success(
+                        body.toWeather()
+                            .copy(icon = iconNameToChar(body.weather.first().icon))
+                    )
+                } else {
+                    NetworkResult.Failure(NetworkError.ServerFailure)
+                }
+            }
+            in 400..500 -> NetworkResult.Failure(NetworkError.CityNotFound)
+            else -> NetworkResult.Failure(NetworkError.ServerFailure)
+        }
+    }
+
+    fun iconNameToChar(icon: String): String {
+        return when (icon) {
+            "01d" -> "\uf11b"
+            "01n" -> "\uf110"
+            "02d" -> "\uf112"
+            "02n" -> "\uf104"
+            "03d", "03n" -> "\uf111"
+            "04d", "04n" -> "\uf111"
+            "09d", "09n" -> "\uf116"
+            "10d", "10n" -> "\uf113"
+            "11d", "11n" -> "\uf10d"
+            "13d", "13n" -> "\uf119"
+            "50d", "50n" -> "\uf10e"
+            else -> "E"
+        }
+    }
+
+    sealed class NetworkResult {
+        class Success(val weather: Weather) : NetworkResult()
+        class Failure(val error: NetworkError) : NetworkResult()
+    }
+
+    sealed class NetworkError : Exception() {
+        object ServerFailure : NetworkError()
+        object CityNotFound : NetworkError()
+    }
 }

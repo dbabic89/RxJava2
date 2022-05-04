@@ -32,15 +32,67 @@ package com.raywenderlich.android.hexcolor
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import io.mockk.mockk
+import io.reactivex.rxjava3.internal.schedulers.TrampolineScheduler
+import io.reactivex.rxjava3.schedulers.TestScheduler
+import org.junit.Assert
 import org.junit.Rule
+import org.junit.Test
 import org.junit.rules.TestRule
 
 
 class ViewModelTest {
 
-  @get:Rule
-  var rule: TestRule = InstantTaskExecutorRule()
+    @get:Rule
+    var rule: TestRule = InstantTaskExecutorRule()
 
-  private val colorCoordinator: ColorCoordinator = mockk(relaxed = true)
+    private val colorCoordinator: ColorCoordinator = mockk(relaxed = true)
 
+    @Test
+    fun `color is red when hex string is FF0000`() {
+        val trampolineScheduler = TrampolineScheduler.instance()
+        val viewModel = ColorViewModel(trampolineScheduler, trampolineScheduler, colorCoordinator)
+
+        viewModel.digitClicked("F")
+        viewModel.digitClicked("F")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+
+        Assert.assertEquals(ColorName.RED.toString(), viewModel.colorNameLiveData.value)
+    }
+
+    @Test
+    fun `color is red when hex string is FF0000 using test scheduler`() {
+        val testScheduler = TestScheduler()
+        val viewModel = ColorViewModel(testScheduler, testScheduler, colorCoordinator)
+
+        viewModel.digitClicked("F")
+        viewModel.digitClicked("F")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+
+        Assert.assertEquals(null, viewModel.colorNameLiveData.value)
+        testScheduler.triggerActions()
+        Assert.assertEquals(ColorName.RED.toString(), viewModel.colorNameLiveData.value)
+    }
+
+    @Test
+    fun `hex subject is reset after clear is clicked`() {
+        val trampolineScheduler = TrampolineScheduler.instance()
+        val viewModel = ColorViewModel(trampolineScheduler, trampolineScheduler, colorCoordinator)
+
+        viewModel.digitClicked("F")
+        viewModel.digitClicked("F")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+        viewModel.digitClicked("0")
+
+        Assert.assertEquals("#FF0000", viewModel.hexStringSubject.value)
+        viewModel.clearClicked()
+        Assert.assertEquals("#", viewModel.hexStringSubject.value)
+    }
 }

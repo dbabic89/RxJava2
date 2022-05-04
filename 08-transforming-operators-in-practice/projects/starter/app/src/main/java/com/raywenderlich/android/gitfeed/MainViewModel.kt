@@ -33,38 +33,96 @@ package com.raywenderlich.android.gitfeed
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.kotlin.subscribeBy
+import io.reactivex.rxjava3.schedulers.Schedulers
 
 class MainViewModel : ViewModel() {
 
-  val eventLiveData = MutableLiveData<List<Event>>()
+    val eventLiveData = MutableLiveData<List<Event>>()
 
-  var events = mutableListOf<Event>()
+    var events = mutableListOf<Event>()
 
-  private val gitHubApi by lazy {
-    GitHubApi.create()
-  }
-
-  private val disposables = CompositeDisposable()
-
-  fun fetchEvents(repo: String) {
-
-  }
-
-  override fun onCleared() {
-    super.onCleared()
-    disposables.dispose()
-  }
-
-  private fun processEvents(newEvents: List<Event>) {
-    var updatedEvents = newEvents + events
-
-    if (updatedEvents.size > 50) {
-      updatedEvents = updatedEvents.slice(0 until 50)
+    private val gitHubApi by lazy {
+        GitHubApi.create()
     }
 
-    events = updatedEvents.toMutableList()
+    private val disposables = CompositeDisposable()
 
-    eventLiveData.value = events
-  }
+    fun fetchEvents(repo: String) {
+        eventLiveData.value = EventsStore.readEvents()
+
+        val lastModified = EventsStore.readLastModified()?.trim() ?: ""
+
+        val apiResponse = gitHubApi.fetchEvents(repo, lastModified).share()
+        apiResponse
+                .filter { (200..300).contains(it.code()) }
+                .map { response -> response.body() }
+                .filter { objects -> objects?.isNotEmpty() == true }
+                .map { objects -> objects?.mapNotNull { Event.fromAnyDict(it) } }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(object : Observer<List<Event>?> {
+                    override fun onSubscribe(d: Disposable?) {
+                    }
+
+                    override fun onNext(events: List<Event>?) {
+                        events?.let {
+                            processEvents(it)
+                        }
+                    }
+
+                    override fun onError(e: Throwable?) {
+                        println("Events error: ${e?.localizedMessage ?: ""}")
+                    }
+
+                    override fun onComplete() {
+                    }
+
+                })
+
+        apiResponse
+                .filter { (200..300).contains(it.code()) }
+                .flatMap { response ->
+                    val value = response.headers().get("Last-Modified")
+                    if (value == null) {
+                        Observable.empty()
+                    } else {
+                        Observable.just(value)
+                    }
+                }.
+                subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeBy(
+                        onNext = { EventsStore.saveLastModified(it) },
+                        onError = { error ->
+                            println("Last Modified Error ::: ${error.message}") }
+                )
+                .addTo(disposables)
+
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        disposables.dispose()
+    }
+
+    private fun processEvents(newEvents: List<Event>) {
+        var updatedEvents = newEvents + events
+
+        if (updatedEvents.size > 50) {
+            updatedEvents = updatedEvents.slice(0 until 50)
+        }
+
+        events = updatedEvents.toMutableList()
+
+        eventLiveData.value = events
+
+        EventsStore.saveEvents(events)
+    }
 }

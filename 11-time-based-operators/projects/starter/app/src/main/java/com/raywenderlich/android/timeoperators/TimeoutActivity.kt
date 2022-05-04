@@ -32,10 +32,20 @@ package com.raywenderlich.android.timeoperators
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.jakewharton.rxbinding4.view.clicks
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.ObservableSource
+import kotlinx.android.synthetic.main.activity_timeout.*
+import java.util.concurrent.TimeUnit
 
-class TimeoutActivity: AppCompatActivity() {
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_timeout)
-  }
+class TimeoutActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_timeout)
+
+        button.clicks()
+            .map { "X" }
+            .timeout(5, TimeUnit.SECONDS, Observable.just("C"))
+            .subscribe(timeout)
+    }
 }

@@ -60,5 +60,8 @@ interface OpenLibraryService {
     }
 
     @GET("search.json")
-    fun searchBooks(@Query("q") searchTerm: String): Single<OpenLibraryResponse>
+    fun searchBooks(
+        @Query("q") searchTerm: String,
+        @Query("page") page: Int
+    ): Single<OpenLibraryResponse>
 }

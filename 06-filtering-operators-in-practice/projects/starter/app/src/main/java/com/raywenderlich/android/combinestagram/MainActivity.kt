@@ -50,80 +50,92 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-  private lateinit var viewModel: SharedViewModel
+    private lateinit var viewModel: SharedViewModel
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_main)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-    title = getString(R.string.collage)
+        title = getString(R.string.collage)
 
-    viewModel = ViewModelProvider(this).get(SharedViewModel::class.java)
+        viewModel = ViewModelProvider(this).get(SharedViewModel::class.java)
 
-    addButton.setOnClickListener {
-      actionAdd()
-    }
-
-    clearButton.setOnClickListener {
-      actionClear()
-    }
-
-    saveButton.setOnClickListener {
-      actionSave()
-    }
-
-    viewModel.getSelectedPhotos().observe(this, Observer { photos ->
-      photos?.let {
-        if (photos.isNotEmpty()) {
-          val bitmaps = photos.map { BitmapFactory.decodeResource(resources, it.drawable) }
-          val newBitmap = combineImages(bitmaps)
-          collageImage.setImageDrawable(BitmapDrawable(resources, newBitmap))
-          updateUI(photos)
-        } else {
-          actionClear()
+        addButton.setOnClickListener {
+            actionAdd()
         }
-      }
-    })
-  }
 
-  private fun actionAdd() {
-//    viewModel.addPhoto(PhotoStore.photos[0])
-    val addPhotoBottomDialogFragment = PhotosBottomDialogFragment.newInstance()
-    addPhotoBottomDialogFragment.show(supportFragmentManager, "PhotosBottomDialogFragment")
-    viewModel.subscribeSelectedPhotos(addPhotoBottomDialogFragment)
-  }
+        clearButton.setOnClickListener {
+            actionClear()
+        }
 
-  private fun actionClear() {
-    viewModel.clearPhotos()
-    collageImage.setImageResource(android.R.color.transparent)
-    updateUI(listOf())
-  }
+        saveButton.setOnClickListener {
+            actionSave()
+        }
 
-  private fun actionSave() {
-    progressBar.visibility = View.VISIBLE
-    viewModel.saveBitmapFromImageView(collageImage, this)
-        .subscribeOn(Schedulers.io())
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribeBy(
-            onSuccess = { file ->
-              Toast.makeText(this, "$file saved", Toast.LENGTH_SHORT).show()
-              progressBar.visibility = View.GONE
-            },
-            onError = { e ->
-              Toast.makeText(this, "Error saving file :${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-              progressBar.visibility = View.GONE
+        viewModel.getSelectedPhotos().observe(this, Observer { photos ->
+            photos?.let {
+                if (photos.isNotEmpty()) {
+                    val bitmaps = photos.map { BitmapFactory.decodeResource(resources, it.drawable) }
+                    val newBitmap = combineImages(bitmaps)
+                    collageImage.setImageDrawable(BitmapDrawable(resources, newBitmap))
+                    updateUI(photos)
+                } else {
+                    actionClear()
+                }
             }
-        )
-  }
+        })
 
-  private fun updateUI(photos: List<Photo>) {
-    saveButton.isEnabled = photos.isNotEmpty() && (photos.size % 2 == 0)
-    clearButton.isEnabled = photos.isNotEmpty()
-    addButton.isEnabled = photos.size < 6
-    title = if (photos.isNotEmpty()) {
-      resources.getQuantityString(R.plurals.photos_format, photos.size, photos.size)
-    } else {
-      getString(R.string.collage)
+        viewModel.getThumbnailStatus().observe(this, Observer { status ->
+            if (status == ThumbnailStatus.READY) {
+                thumbnail.setImageDrawable(collageImage.drawable)
+            }
+        })
+
+        viewModel.getCollageStatus().observe(this, Observer { collageStatus ->
+            if (collageStatus == CollageStatus.READY) {
+                Toast.makeText(this, "Collage is ready", Toast.LENGTH_LONG).show()
+            }
+        })
     }
-  }
+
+    private fun actionAdd() {
+//    viewModel.addPhoto(PhotoStore.photos[0])
+        val addPhotoBottomDialogFragment = PhotosBottomDialogFragment.newInstance()
+        addPhotoBottomDialogFragment.show(supportFragmentManager, "PhotosBottomDialogFragment")
+        viewModel.subscribeSelectedPhotos(addPhotoBottomDialogFragment)
+    }
+
+    private fun actionClear() {
+        viewModel.clearPhotos()
+        collageImage.setImageResource(android.R.color.transparent)
+        updateUI(listOf())
+    }
+
+    private fun actionSave() {
+        progressBar.visibility = View.VISIBLE
+        viewModel.saveBitmapFromImageView(collageImage, this)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeBy(
+                        onSuccess = { file ->
+                            Toast.makeText(this, "$file saved", Toast.LENGTH_SHORT).show()
+                            progressBar.visibility = View.GONE
+                        },
+                        onError = { e ->
+                            Toast.makeText(this, "Error saving file :${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                            progressBar.visibility = View.GONE
+                        }
+                )
+    }
+
+    private fun updateUI(photos: List<Photo>) {
+        saveButton.isEnabled = photos.isNotEmpty() && (photos.size % 2 == 0)
+        clearButton.isEnabled = photos.isNotEmpty()
+        addButton.isEnabled = photos.size < 6
+        title = if (photos.isNotEmpty()) {
+            resources.getQuantityString(R.plurals.photos_format, photos.size, photos.size)
+        } else {
+            getString(R.string.collage)
+        }
+    }
 }
